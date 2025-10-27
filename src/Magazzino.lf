@@ -1,9 +1,9 @@
 target Python {
     files: [
-        "include/Platform.py",
-        "include/Tray.py",
-        "include/Slot.py",
-        "include/Warehouse.py",
+        "python/Platform.py",
+        "python/Tray.py",
+        "python/Slot.py",
+        "python/Warehouse.py",
     ]
 };
 
