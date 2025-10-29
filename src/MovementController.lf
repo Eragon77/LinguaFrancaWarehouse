@@ -1,0 +1,143 @@
+target Python{
+
+}
+
+reactor MovementController{
+    
+    input platform_in
+    input start
+    output ready
+    output done
+
+    state platform_mc
+
+
+    #PICKUP CASSETTO
+    logical action move_to_pickup;
+    logical action extract_to_pickup;
+    logical action perform_pickup;
+    logical action retract_after_pickup;
+
+    #PLACING CASSETTO
+    logical action move_to_place;
+    logical action extract_to_place;
+    logical action perform_place;
+    logical action retract_after_place;
+
+    reaction(platform_in)->ready{=
+        self.platform_mc=platform_in.value
+        if self.platform_mc is not None:
+            print("[MC] Platform received and stored")
+            ready.set(True)
+        else:
+            print("[MC] Failed to receive platform")
+            ready.set(False)
+            #Shutdown??
+    =}
+
+
+    reaction(start)->move_to_pickup{=
+        slot_from=start.value[0]
+        slot_to=start.value[1]
+
+        timeY=self.platform_mc.calculate_y_move_time(slot_from.y)
+        timeY_ns = int(timeY * 1000000000)
+
+        print(f"[Y] Moving to {slot_from.position_id}. Time: {timeY} sec")
+        
+        move_to_pickup.schedule(NSEC(timeY_ns), (slot_from,slot_to))
+    =}
+
+    reaction(move_to_pickup) -> extract_to_pickup {=
+        slot_from = move_to_pickup.value[0]
+        slot_to = move_to_pickup.value[1]
+
+        print(f"[Y] Arrived at {slot_from.position_id}.")
+        timeX = self.platform_mc.calculate_x_move_time(slot_from.x)
+        timeX_ns = int(timeX * 1000000000)
+        
+        print(f"[X] Extracting from {slot_from.position_id}. Time: {timeX} sec")
+
+        extract_to_pickup.schedule(NSEC(timeX_ns), (slot_from, slot_to))
+    =}
+
+    reaction(extract_to_pickup) -> perform_pickup {=
+        slot_from = extract_to_pickup.value[0]
+        slot_to = extract_to_pickup.value[1]
+        
+        print(f"[X] Arrived at {slot_from.position_id}. Scheduling instant pickup.")
+        
+        perform_pickup.schedule(0, (slot_from, slot_to))
+    =}
+
+    reaction(perform_pickup) -> retract_after_pickup {=
+        slot_from = perform_pickup.value[0]
+        slot_to = perform_pickup.value[1]
+
+        success = self.platform_mc.pick_up_from(slot_from)
+        print(f"[*] Pickup from {slot_from.position_id}: {success}")
+
+        retractTimeX = self.platform_mc.calculate_x_move_time(0)
+        retractTimeX_ns = int(retractTimeX * 1000000000)
+        print(f"[X] Retracting extractor. Time: {retractTimeX} sec")
+
+        retract_after_pickup.schedule(NSEC(retractTimeX_ns), (slot_from, slot_to))
+    =}
+
+    reaction(retract_after_pickup) -> move_to_place {=
+        slot_from = retract_after_pickup.value[0]
+        slot_to = retract_after_pickup.value[1]
+        
+        print(f"[*] Extractor retracted.")
+        timeY = self.platform_mc.calculate_y_move_time(slot_to.y)
+        timeY_ns = int(timeY * 1000000000)
+        print(f"[Y] Moving to {slot_to.position_id}. Time: {timeY} sec")
+
+        move_to_place.schedule(NSEC(timeY_ns), (slot_from, slot_to))
+    =}
+
+    reaction(move_to_place) -> extract_to_place {=
+        slot_from = move_to_place.value[0]
+        slot_to = move_to_place.value[1]
+
+        print(f"[Y] Arrived at {slot_to.position_id}.")
+        timeX = self.platform_mc.calculate_x_move_time(slot_to.x)
+        timeX_ns = int(timeX * 1000000000)
+        print(f"[X] Extracting to {slot_to.position_id}. Time: {timeX} sec")
+        
+        extract_to_place.schedule(NSEC(timeX_ns), (slot_from, slot_to))
+    =}
+
+    reaction(extract_to_place) -> perform_place {=
+        slot_from = extract_to_place.value[0]
+        slot_to = extract_to_place.value[1]
+        
+        print(f"[X] Arrived at {slot_to.position_id}. Scheduling instant place.")
+
+        perform_place.schedule(0, (slot_from, slot_to))
+    =}
+
+    reaction(perform_place) -> retract_after_place {=
+        slot_from = perform_place.value[0]
+        slot_to = perform_place.value[1]
+
+        success = self.platform_mc.place_into(slot_to)
+        print(f"[*] Place into {slot_to.position_id}: {success}")
+        
+        retractTimeX = self.platform_mc.calculate_x_move_time(0)
+        retractTimeX_ns = int(retractTimeX * 1000000000)
+        print(f"[X] Retracting extractor. Time: {retractTimeX} sec")
+
+        retract_after_place.schedule(NSEC(retractTimeX_ns), (slot_from, slot_to))
+    =}
+
+    reaction(retract_after_place)->done {=
+        slot_from = retract_after_place.value[0]
+        slot_to = retract_after_place.value[1]
+        
+        print(f"[*] Extractor retracted. Move from {slot_from.position_id} to {slot_to.position_id} complete.")
+        done.set(True)
+    =}
+
+
+}

@@ -7,6 +7,8 @@ target Python {
     ]
 };
 
+  import MovementController from "MovementController.lf"
+
 preamble{=
     from Platform import Platform
     from Tray import Tray
@@ -15,140 +17,42 @@ preamble{=
 =}
 
 
-main reactor Magazzino{
-    state warehouse_lf
+main reactor Magazzino{    
+    mc=new MovementController() 
     state platform_lf
+    state warehouse_lf
 
-    logical action start_moving;
+    logical action send_platform;
+    logical action setup_test;
 
-    #PICKUP CASSETTO
-    logical action move_to_pickup;
-    logical action extract_to_pickup;
-    logical action perform_pickup;
-    logical action retract_after_pickup;
-
-    #PLACING CASSETTO
-    logical action move_to_place;
-    logical action extract_to_place;
-    logical action perform_place;
-    logical action retract_after_place;
-
-
-    reaction(startup)->start_moving{=
+    reaction(startup)->send_platform{=
         self.warehouse_lf=Warehouse()
         self.platform_lf=Platform()
         tray1=Tray()
+        self.warehouse_lf.storage_slots[0].add_tray(tray1)
+        send_platform.schedule(0)
+    =}
 
-        done1=self.warehouse_lf.storage_slots[0].add_tray(tray1)
+    reaction(send_platform)->mc.platform_in{=
+        mc.platform_in.set(self.platform_lf)
+    =}
 
-        print(f"Slot 0 loaded: {done1}")
-        print("--- Warehouse ready. ---")
+    reaction(mc.ready)->setup_test{=
+        if mc.ready.value is True:
+            print("[W] MC ready. Scheduling test_setup")
+            setup_test.schedule(0)
+    =}
+
+    reaction(setup_test)->mc.start{=
+        print("[W] Scheduling test move")
 
         slotA=self.warehouse_lf.storage_slots[0]
         slotB=self.warehouse_lf.storage_slots[1]
 
-        start_moving.schedule(SEC(1),(slotA,slotB))
+        mc.start.set((slotA,slotB))
     =}
 
-    reaction(start_moving)->move_to_pickup{=
-        slot_from=start_moving.value[0]
-        slot_to=start_moving.value[1]
-
-        timeY=self.platform_lf.calculate_y_move_time(slot_from.y)
-        timeY_ns = int(timeY * 1000000000)
-
-        print(f"[Y] Moving to {slot_from.position_id}. Time: {timeY} sec")
-        
-        move_to_pickup.schedule(NSEC(timeY_ns), (slot_from,slot_to))
-    =}
-
-    reaction(move_to_pickup) -> extract_to_pickup {=
-        slot_from = move_to_pickup.value[0]
-        slot_to = move_to_pickup.value[1]
-
-        print(f"[Y] Arrived at {slot_from.position_id}.")
-        timeX = self.platform_lf.calculate_x_move_time(slot_from.x)
-        timeX_ns = int(timeX * 1000000000)
-        
-        print(f"[X] Extracting from {slot_from.position_id}. Time: {timeX} sec")
-
-        extract_to_pickup.schedule(NSEC(timeX_ns), (slot_from, slot_to))
-    =}
-
-    reaction(extract_to_pickup) -> perform_pickup {=
-        slot_from = extract_to_pickup.value[0]
-        slot_to = extract_to_pickup.value[1]
-        
-        print(f"[X] Arrived at {slot_from.position_id}. Scheduling instant pickup.")
-        
-        perform_pickup.schedule(0, (slot_from, slot_to))
-    =}
-
-    reaction(perform_pickup) -> retract_after_pickup {=
-        slot_from = perform_pickup.value[0]
-        slot_to = perform_pickup.value[1]
-
-        success = self.platform_lf.pick_up_from(slot_from)
-        print(f"[*] Pickup from {slot_from.position_id}: {success}")
-
-        retractTimeX = self.platform_lf.calculate_x_move_time(0)
-        retractTimeX_ns = int(retractTimeX * 1000000000)
-        print(f"[X] Retracting extractor. Time: {retractTimeX} sec")
-
-        retract_after_pickup.schedule(NSEC(retractTimeX_ns), (slot_from, slot_to))
-    =}
-
-    reaction(retract_after_pickup) -> move_to_place {=
-        slot_from = retract_after_pickup.value[0]
-        slot_to = retract_after_pickup.value[1]
-        
-        print(f"[*] Extractor retracted.")
-        timeY = self.platform_lf.calculate_y_move_time(slot_to.y)
-        timeY_ns = int(timeY * 1000000000)
-        print(f"[Y] Moving to {slot_to.position_id}. Time: {timeY} sec")
-
-        move_to_place.schedule(NSEC(timeY_ns), (slot_from, slot_to))
-    =}
-
-    reaction(move_to_place) -> extract_to_place {=
-        slot_from = move_to_place.value[0]
-        slot_to = move_to_place.value[1]
-
-        print(f"[Y] Arrived at {slot_to.position_id}.")
-        timeX = self.platform_lf.calculate_x_move_time(slot_to.x)
-        timeX_ns = int(timeX * 1000000000)
-        print(f"[X] Extracting to {slot_to.position_id}. Time: {timeX} sec")
-        
-        extract_to_place.schedule(NSEC(timeX_ns), (slot_from, slot_to))
-    =}
-
-    reaction(extract_to_place) -> perform_place {=
-        slot_from = extract_to_place.value[0]
-        slot_to = extract_to_place.value[1]
-        
-        print(f"[X] Arrived at {slot_to.position_id}. Scheduling instant place.")
-
-        perform_place.schedule(0, (slot_from, slot_to))
-    =}
-
-    reaction(perform_place) -> retract_after_place {=
-        slot_from = perform_place.value[0]
-        slot_to = perform_place.value[1]
-
-        success = self.platform_lf.place_into(slot_to)
-        print(f"[*] Place into {slot_to.position_id}: {success}")
-        
-        retractTimeX = self.platform_lf.calculate_x_move_time(0)
-        retractTimeX_ns = int(retractTimeX * 1000000000)
-        print(f"[X] Retracting extractor. Time: {retractTimeX} sec")
-
-        retract_after_place.schedule(NSEC(retractTimeX_ns), (slot_from, slot_to))
-    =}
-
-    reaction(retract_after_place) {=
-        slot_from = retract_after_place.value[0]
-        slot_to = retract_after_place.value[1]
-        
-        print(f"[*] Extractor retracted. Move from {slot_from.position_id} to {slot_to.position_id} complete.")
+    reaction(mc.done){=
+        print("Done")
     =}
 }
