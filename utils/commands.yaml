@@ -1,0 +1,7 @@
+- action: move
+  from: storage_L_5
+  to: queue_1
+
+- action: swap
+  from: queue_1
+  to: storage_R_7
