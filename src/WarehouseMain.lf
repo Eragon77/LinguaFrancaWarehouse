@@ -1,0 +1,257 @@
+target Python {
+    files: [
+        "python/warehouse_platform.py",
+        "python/tray.py",
+        "python/slot.py",
+        "python/warehouse.py",
+        "python/command_reader.py"
+    ], 
+    timeout: 40 secs
+};
+
+preamble{=
+    from warehouse_platform import Platform
+    from tray import Tray
+    from slot import Slot
+    from warehouse import Warehouse
+    from command_reader import load_commands
+
+    def get_y_move_time(platform, target_y):
+            d = abs(target_y - platform.curr_y)
+            speed = platform.speed_y
+            return d / speed
+
+    def get_x_move_time(platform, target_x):
+            d = abs(target_x) # Assume movimento da/a x=0
+            speed = platform.extract_speed
+            return d / speed 
+=}
+
+
+main reactor WarehouseMain {
+
+    state wh
+    state command_list
+
+    
+    logical action execute_next_command;
+
+
+    #PICKUP TRAY
+    logical action move_to_pickup;
+    logical action extract_to_pickup;
+    logical action perform_pickup;
+    logical action retract_after_pickup;
+
+    #PLACE TRAY
+    logical action move_to_place;
+    logical action extract_to_place;
+    logical action perform_place;
+    logical action retract_after_place;
+
+    timer read_commands_timer(0, 3 secs)
+
+
+    reaction(startup){=
+        self.wh=Warehouse()
+        self.command_list=load_commands("commands.yaml")
+
+        print("[*] Warehouse system initialized.")
+    =}
+
+   reaction(read_commands_timer) -> execute_next_command{=
+        # Check if the warehouse is already processing another command
+        if not self.wh.is_ready():
+            return
+
+        if len(self.command_list) > 0:
+            # Dequeue the next command
+            cmd = self.command_list.pop()
+            
+            # Set the lock to prevent new commands from starting
+            self.wh.set_busy()
+            
+            # Schedule the command for execution
+            execute_next_command.schedule(0, cmd)
+        else:
+            # No commands left in the queue
+            print("[*] No more commands to execute.")
+            return 0
+    =}
+
+    reaction(execute_next_command) -> move_to_pickup {=
+        
+        cmd = execute_next_command.value
+        #TODO:PRINT?
+
+        if cmd["action"] == "move":
+            
+            slot_from = self.wh.get_slot_by_id(cmd["from"])
+            slot_to = self.wh.get_slot_by_id(cmd["to"])
+
+            if slot_from and slot_to:
+                # Both slots are valid, start the action chain
+                move_to_pickup.schedule(0, (slot_from, slot_to))
+            else:
+                # Error: Slots not found. Release lock for next command.
+                print(f"[!] Invalid slot IDs in command: {cmd}")
+                self.wh.set_idle()
+            
+        elif cmd["action"] == "swap":
+            slot_a = self.wh.get_slot_by_id(cmd["from"])
+            slot_b = self.wh.get_slot_by_id(cmd["to"])
+            
+            # Find an empty slot to use as a buffer
+            slot_temp = self.wh.find_empty_storage_slot()
+
+            # Validate all three slots (A, B, and Buffer)
+            if not (slot_a and slot_b and slot_temp):
+                print(f"[!] Invalid slot IDs in command: {cmd}")
+                if not slot_temp: # Check for the specific buffer error
+                    print(f"[!] No empty storage slot available for swap operation.")
+                self.wh.set_idle()
+                return
+            
+            print(f"[*] Swapping {slot_a.position_id} with {slot_b.position_id} using temporary slot {slot_temp.position_id}.")
+
+            # Decompose the "swap" into three separate "move" commands
+            cmd_1 = {"action":"move", "from": slot_a.position_id, "to": slot_temp.position_id}
+            cmd_2 = {"action":"move", "from": slot_b.position_id, "to": slot_a.position_id}
+            cmd_3 = {"action":"move", "from": slot_temp.position_id, "to": slot_b.position_id}
+
+            # Push the new commands onto the queue in reverse order
+            # (cmd_1 will be executed first)
+            self.command_list.append(cmd_3)
+            self.command_list.append(cmd_2)
+            self.command_list.append(cmd_1)
+
+            # Release the lock. The poller will pick up cmd_1 on its next cycle.
+            self.wh.set_idle()
+    =}
+
+    reaction(move_to_pickup) -> extract_to_pickup {=
+        slot_from = move_to_pickup.value[0]
+        slot_to = move_to_pickup.value[1]
+
+        platform = self.wh.platform 
+        timeY = get_y_move_time(platform, slot_from.y)
+        timeY_ms = int(timeY * 1000)
+        
+        print(f"[Y] Moving to {slot_from.position_id}. Time: {timeY} sec")
+        
+        extract_to_pickup.schedule(MSEC(timeY_ms), (slot_from,slot_to))
+    =}
+
+    reaction(extract_to_pickup) -> perform_pickup {=
+        slot_from = extract_to_pickup.value[0]
+        slot_to = extract_to_pickup.value[1]
+        
+        self.wh.platform.update_y_position(slot_from.y)
+        print(f"[Y] Arrived at {slot_from.position_id}.")
+
+        platform=self.wh.platform
+        timeX = get_x_move_time(platform, slot_from.x)
+        timeX_ms= int(timeX * 1000)
+        
+        print(f"[X] Extracting from {slot_from.position_id}. Time: {timeX} sec")
+        
+        perform_pickup.schedule(MSEC(timeX_ms), (slot_from, slot_to))
+    =}
+
+    reaction(perform_pickup) -> retract_after_pickup {=
+        slot_from = perform_pickup.value[0]
+        slot_to = perform_pickup.value[1]
+
+        success = self.wh.platform.pick_up_from(slot_from)
+
+        
+        if not success:
+            print(f"[!] ERROR: Pickup failed. Idling warehouse.")
+            self.wh.set_idle()
+            return
+            
+        print(f"[*] Pickup from {slot_from.position_id}: {success}")
+
+        platform = self.wh.platform
+        timeX = get_x_move_time(platform, slot_from.x)
+        timeX_ms = int(timeX * 1000)
+        print(f"[X] Retracting extractor. Time: {timeX} sec")
+
+        retract_after_pickup.schedule(MSEC(timeX_ms), (slot_from, slot_to))
+    =}
+
+    reaction(retract_after_pickup) -> move_to_place {=
+        slot_from = retract_after_pickup.value[0]
+        slot_to = retract_after_pickup.value[1]
+        
+        # (TODO: Add platform.update_x_position(0) to Python class)
+        print(f"[*] Extractor retracted.")
+        
+        platform = self.wh.platform
+        timeY = get_y_move_time(platform, slot_to.y) 
+        timeY_ms = int(timeY * 1000)
+        
+        print(f"[Y] Moving to {slot_to.position_id}. Time: {timeY} sec")
+
+        move_to_place.schedule(MSEC(timeY_ms), (slot_from, slot_to))
+    =}
+
+    reaction(move_to_place) -> extract_to_place {=
+        slot_from = move_to_place.value[0]
+        slot_to = move_to_place.value[1]
+
+        self.wh.platform.update_y_position(slot_to.y)
+
+        print(f"[Y] Arrived at {slot_to.position_id}.")
+        platform = self.wh.platform
+        timeX = get_x_move_time(platform, slot_to.x)
+        timeX_ms = int(timeX * 1000)
+        
+        print(f"[X] Extracting to {slot_to.position_id}. Time: {timeX} sec")
+        
+        extract_to_place.schedule(MSEC(timeX_ms), (slot_from, slot_to))
+    =}
+
+    reaction(extract_to_place) -> perform_place {=
+        slot_from = extract_to_place.value[0]
+        slot_to = extract_to_place.value[1]
+        
+        # (TODO: Add platform.update_x_position(slot_to.x) to Python class)
+        print(f"[X] Arrived at {slot_to.position_id}. Scheduling instant place.")
+
+        perform_place.schedule(0, (slot_from, slot_to))
+    =}
+
+    reaction(perform_place) -> retract_after_place {=
+        slot_from = perform_place.value[0]
+        slot_to = perform_place.value[1]
+
+        success = self.wh.platform.place_into(slot_to)
+        
+        if not success:
+            print(f"[!] ERROR: Place failed. Idling warehouse.")
+            self.wh.set_idle()
+            return
+            
+        print(f"[*] Place into {slot_to.position_id}: {success}")
+        
+        platform = self.wh.platform
+        timeX = get_x_move_time(platform, slot_to.x)
+        timeX_ms = int(timeX * 1000)
+        
+        print(f"[X] Retracting extractor. Time: {timeX} sec")
+
+        retract_after_place.schedule(MSEC(timeX_ms), (slot_from, slot_to))
+    =}
+
+    reaction(retract_after_place) {=
+        slot_from = retract_after_place.value[0]
+        slot_to = retract_after_place.value[1]
+        
+        # (TODO: Add platform.update_x_position(0) to Python class)
+        print(f"[*] Extractor retracted. Move from {slot_from.position_id} to {slot_to.position_id} complete.")
+
+        self.wh.set_idle()
+    =}
+
+}
