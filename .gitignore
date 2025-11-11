@@ -2,3 +2,4 @@ src-gen/
 bin/
 __pycache__/
 include/
+.venv/
