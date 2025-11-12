@@ -6,7 +6,6 @@ target Python {
         "python/warehouse.py",
         "python/command_reader.py"
     ], 
-    timeout: 40 secs
 };
 
 preamble{=
@@ -22,7 +21,7 @@ preamble{=
             return d / speed
 
     def get_x_move_time(platform, target_x):
-            d = abs(target_x) # Assume movimento da/a x=0
+            d = abs(target_x - platform.curr_x) # Assume movimento da/a x=0
             speed = platform.extract_speed
             return d / speed 
 =}
@@ -76,7 +75,7 @@ main reactor WarehouseMain {
         else:
             # No commands left in the queue
             print("[*] No more commands to execute.")
-            return 0
+            lf.request_stop()
     =}
 
     reaction(execute_next_command) -> move_to_pickup {=
@@ -107,7 +106,7 @@ main reactor WarehouseMain {
             # Validate all three slots (A, B, and Buffer)
             if not (slot_a and slot_b and slot_temp):
                 print(f"[!] Invalid slot IDs in command: {cmd}")
-                if not slot_temp: # Check for the specific buffer error
+                if not slot_temp: 
                     print(f"[!] No empty storage slot available for swap operation.")
                 self.wh.set_idle()
                 return
@@ -125,7 +124,7 @@ main reactor WarehouseMain {
             self.command_list.append(cmd_2)
             self.command_list.append(cmd_1)
 
-            # Release the lock. The poller will pick up cmd_1 on its next cycle.
+            # Release the lock.
             self.wh.set_idle()
     =}
 
@@ -184,7 +183,7 @@ main reactor WarehouseMain {
         slot_from = retract_after_pickup.value[0]
         slot_to = retract_after_pickup.value[1]
         
-        # (TODO: Add platform.update_x_position(0) to Python class)
+        self.wh.platform.update_x_position(0)
         print(f"[*] Extractor retracted.")
         
         platform = self.wh.platform
@@ -216,7 +215,7 @@ main reactor WarehouseMain {
         slot_from = extract_to_place.value[0]
         slot_to = extract_to_place.value[1]
         
-        # (TODO: Add platform.update_x_position(slot_to.x) to Python class)
+        self.wh.platform.update_x_position(slot_to.x)
         print(f"[X] Arrived at {slot_to.position_id}. Scheduling instant place.")
 
         perform_place.schedule(0, (slot_from, slot_to))
@@ -248,7 +247,7 @@ main reactor WarehouseMain {
         slot_from = retract_after_place.value[0]
         slot_to = retract_after_place.value[1]
         
-        # (TODO: Add platform.update_x_position(0) to Python class)
+        self.wh.platform.update_x_position(0)
         print(f"[*] Extractor retracted. Move from {slot_from.position_id} to {slot_to.position_id} complete.")
 
         self.wh.set_idle()

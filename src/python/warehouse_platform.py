@@ -4,7 +4,8 @@ from slot import Slot
 class Platform:
     def __init__(self):
         # --- State: Position ---
-        # Stores the current vertical position (Y-axis) of the platform.
+        # Stores the current vertical and horizontal position of the platform.
+        self.curr_x = 0.0
         self.curr_y = 0.0
 
         # --- State: Contents ---
@@ -33,7 +34,6 @@ class Platform:
         tray_to_pick = slot.remove_tray()
 
         if tray_to_pick is None:
-            # print("Error: slot was empty") # Controller should handle this
             return False  # Slot was empty
         
         self.held_tray = tray_to_pick
@@ -46,13 +46,11 @@ class Platform:
         Returns False if the platform is empty or the slot is full.
         """
         if not self.is_holding_tray():
-            # print("No tray to place")
             return False  # Platform is empty
         
         done = slot.add_tray(self.held_tray)
 
         if not done:
-            # print("Can't put into slot")
             return False  # Slot was full
         
         self.held_tray = None
@@ -64,3 +62,10 @@ class Platform:
         position after a move action is complete.
         """
         self.curr_y = new_y
+
+    def update_x_position(self, new_x: float):
+        """
+        A setter for the controller to update the platform's
+        position after an extract action is complete.
+        """
+        self.curr_x = new_x
