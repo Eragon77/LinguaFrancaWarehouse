@@ -27,7 +27,7 @@ def test_warehouse_init(warehouse):
     assert warehouse.in_view_slot is not None
     
     total_slots = len(warehouse.storage_slots) + len(warehouse.queued_slots) + 1
-    assert total_slots == 20
+    assert total_slots == 40
 
 def test_warehouse_state_methods(warehouse):
     assert warehouse.is_ready() is True
