@@ -227,7 +227,7 @@ main reactor WarehouseMain {
 
         success = self.wh.platform.place_into(slot_to)
         
-        if not success:
+        if not success: #ROLLBACK?
             print(f"[!] ERROR: Place failed. Idling warehouse.")
             self.wh.set_idle()
             return
