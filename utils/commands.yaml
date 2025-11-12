@@ -1,7 +1,12 @@
+# 1. Move tray from L_5 to q_1.
+#    State after: L_5 is EMPTY, q_1 is FULL.
 - action: move
   from: storage_L_5
   to: queue_1
 
-- action: swap
+# 2. This command tests the ROLLBACK logic:
+#    - Pickup from q_1 (which is now FULL) -> SUCCEEDS
+#    - Place into L_0 (which is FULL from init) -> FAILS
+- action: move
   from: queue_1
-  to: storage_R_7
+  to: storage_L_0
