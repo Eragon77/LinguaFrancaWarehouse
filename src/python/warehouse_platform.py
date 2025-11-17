@@ -15,8 +15,8 @@ class Platform:
         # --- Physical Constants ---
         # The controller (Lingua Franca) will read these values 
         # to calculate movement times.
-        self.speed_y = 1.0          # Movement speed along the Y-axis
-        self.extract_speed = 0.5    # Movement speed for X-axis (extraction)
+        self.speed_y = 0.3          # Movement speed along the Y-axis
+        self.extract_speed = 0.15    # Movement speed for X-axis (extraction)
 
     def is_holding_tray(self):
         """Checks if the platform is currently holding a tray."""
