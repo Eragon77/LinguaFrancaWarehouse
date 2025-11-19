@@ -113,11 +113,23 @@ class Warehouse:
         
         return None
     
-    def is_queue_available(self):
+    def get_empty_queue_slot(self)->Slot | None:
         """
         Checks if all the queue slots are empty.
+        If they are, returns the first queue slot.
         """
         for slot in self.queued_slots:
             if slot.tray is not None:
-                return False
-        return True
+                return None
+        return self.queued_slots[0]
+    
+    def get_occupied_queue_slot(self)->Slot | None:
+        """
+        Returns the first occupied queue slot.
+        If none are occupied, returns None.
+        """
+        for slot in self.queued_slots:
+            if slot.tray is not None:
+                return slot
+        return None
+    
