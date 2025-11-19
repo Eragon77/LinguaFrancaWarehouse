@@ -61,9 +61,8 @@ class Warehouse:
         except AttributeError as e:
             print(f"Error during warehouse initialization: {e}")
 
-    # --- Helper Methods for the Controller ---
 
-    def get_all_slots(self):
+    def _get_all_slots(self):
         """Helper to return one single list of all slots."""
         # Combines all slot lists into one for easy searching
         all_slots = self.storage_slots + self.queued_slots
@@ -102,3 +101,23 @@ class Warehouse:
                 return slot
         
         return None
+    
+    def get_slot_by_tray_id(self, tray_id: str):
+        """
+        Finds and returns the slot containing the tray with the given ID.
+        Returns None if no such tray is found.
+        """
+        for slot in self._get_all_slots():
+            if slot.tray and slot.tray.tray_id == tray_id:
+                return slot
+        
+        return None
+    
+    def is_queue_available(self):
+        """
+        Checks if all the queue slots are empty.
+        """
+        for slot in self.queued_slots:
+            if slot.tray is not None:
+                return False
+        return True
