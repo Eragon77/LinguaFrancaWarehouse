@@ -76,9 +76,9 @@ class WarehouseController:
         self._move_x(0.0,"PLACE")
         return True
     
-    # ---------------------------------------------------------------------
-    # HIGH-LEVEL COMMAND IMPLEMENTATIONS
-    # ---------------------------------------------------------------------
+    # ---------
+    # API
+    # ---------
     
     def build_enqueue_sequence(self, tray_id: str) -> bool:
         """
