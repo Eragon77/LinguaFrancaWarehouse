@@ -1,5 +1,5 @@
 import logging
-from typing import List,Tuple
+from typing import List,Tuple,Callable,Optional
 
 Step=Tuple[float,str,tuple,str] # (time, function_name, args, message)
 
@@ -56,10 +56,10 @@ class WarehouseController:
         # 1. PICKUP PHASE 
         # ------------------------
 
-        self._move_y(slot_from, "PICKUP")
+        self._move_y(slot_from.y, "PICKUP")
         self._move_x(slot_from.x, "PICKUP")
 
-        self._add_step(0.0,"pick_up_from", (slot_from), f"PICKUP: tray from {slot_from.position_id}.")
+        self._add_step(0.0,"pick_up_from", (slot_from,), f"PICKUP: tray from {slot_from.position_id}.")
 
         self._move_x(0.0,"PICKUP")
 
@@ -67,11 +67,10 @@ class WarehouseController:
         # 2. PLACE PHASE 
         # ------------------
         
-
-        self._move_y(slot_to, "PLACE")
+        self._move_y(slot_to.y, "PLACE")
         self._move_x(slot_to.x, "PLACE")
 
-        self._add_step(0.0, "place_into", (slot_to), f"PLACE: tray into {slot_to.position_id}.")
+        self._add_step(0.0, "place_into", (slot_to,), f"PLACE: tray into {slot_to.position_id}.")
 
         self._move_x(0.0,"PLACE")
         return True
@@ -84,9 +83,7 @@ class WarehouseController:
         """
         Builds the sequence to move a specific tray from storage to the empty queue slot.
         """
-        # 1. Find the source slot (in storage)
         slot_from = self.wh.find_slot_by_tray_id(tray_id)
-        # 2. Find the destination slot (the queue)
         slot_to = self.wh.get_empty_queue_slot()
 
         if not slot_from:
@@ -155,7 +152,7 @@ class WarehouseController:
         """ Returns (next_step_time, function, arguments, message) """
         if not self.current_move_sequence:
             return None, None, None, None
-        return self.current_move_sequence.pop()
+        return self.current_move_sequence.pop(0)
     
     def execute_step(self, function_name, args):
         """ Executes the logical/physical step requested by LF. """
