@@ -3,19 +3,15 @@ from slot import Slot
 
 class Platform:
     def __init__(self):
-        # --- State: Position ---
         # Stores the current vertical and horizontal position of the platform.
         self.curr_x = 0.0
         self.curr_y = 0.0
 
-        # --- State: Contents ---
         # Holds the Tray object if the platform is carrying one, otherwise None.
         self.held_tray = None
 
-        # --- Physical Constants ---
-        # The controller (Lingua Franca) will read these values 
-        # to calculate movement times.
-        self.speed_y = 0.3          # Movement speed along the Y-axis
+
+        self.speed_y = 0.2          # Movement speed along the Y-axis
         self.extract_speed = 0.15    # Movement speed for X-axis (extraction)
 
     def is_holding_tray(self):
@@ -31,13 +27,12 @@ class Platform:
         if self.is_holding_tray():
             return False  # Platform is already holding something
         
-        tray_to_pick = slot.remove_tray()
-
-        if tray_to_pick is None:
-            return False  # Slot was empty
-        
-        self.held_tray = tray_to_pick
-        return True
+        try:
+            tray_to_pick = slot.remove_tray()
+            self.held_tray = tray_to_pick
+            return True
+        except ValueError:
+            return False
     
     def place_into(self, slot: Slot):
         """
@@ -48,13 +43,12 @@ class Platform:
         if not self.is_holding_tray():
             return False  # Platform is empty
         
-        done = slot.add_tray(self.held_tray)
-
-        if not done:
-            return False  # Slot was full
-        
-        self.held_tray = None
-        return True
+        try:
+            slot.add_tray(self.held_tray)
+            self.held_tray = None
+            return True
+        except ValueError:
+            return False
     
     def update_y_position(self, new_y: float):
         """
@@ -62,6 +56,7 @@ class Platform:
         position after a move action is complete.
         """
         self.curr_y = new_y
+        return True
 
     def update_x_position(self, new_x: float):
         """
@@ -69,3 +64,4 @@ class Platform:
         position after an extract action is complete.
         """
         self.curr_x = new_x
+        return True
