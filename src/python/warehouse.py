@@ -18,7 +18,7 @@ class Warehouse:
         self.queued_slots = []
         self.in_view_slot = None 
 
-        # --- Controller State ---
+        # --- Busy State ---
         self.is_busy = False
 
         # --- Initialize all slot positions ---

@@ -63,22 +63,19 @@ main reactor WarehouseMain {
         cmd = execute_next_command.value
         success = False
 
-        # Handle high-level ENQUEUE command (requires tray_id)
+        # Handle ENQUEUE command (requires tray_id)
         if cmd["action"] == "enqueue_tray":
             if "tray_id" in cmd:
-                # Delegate to Python: find tray by ID and move to queue
                 success = self.wh_ctrl.build_enqueue_sequence(str(cmd["tray_id"]))
             else:
                 logging.error("[*] Enqueue failed: 'tray_id' missing in command.")
 
-        # Handle high-level SEND_BACK command (moves from Bay to Storage)
+        # Handle SEND_BACK command (moves from Bay to Storage)
         elif cmd["action"] == "send_back_tray":
-            # Delegate to Python: move from Bay/In_View to storage (no arguments needed)
             success = self.wh_ctrl.build_send_back_sequence()
         
-        # Handle high-level EXTRACT command (moves first tray from Queue to Bay)
+        # Handle EXTRACT command (moves first tray from Queue to Bay)
         elif cmd["action"] == "extract_tray":
-            # Delegate to Python: find first occupied queue slot and move to bay (no arguments needed)
             success = self.wh_ctrl.build_extract_sequence()
 
         else:
