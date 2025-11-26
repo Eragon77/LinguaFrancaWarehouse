@@ -23,6 +23,24 @@ class WarehouseController:
     def _get_time_x(self, target_x: float) -> float:
         platform = self.wh.platform
         return self._compute_time(target_x - platform.curr_x, platform.extract_speed, "X")
+    
+    # -----------------------
+    # Sequence helpers
+    # -----------------------
+    
+    def _add_step(self,duration:float,func:str,args:tuple,msg:str):
+        """Adds a step to the move sequence"""
+        self.current_move_sequence.append((duration,func,args,msg))
+
+    def _move_x(self, x: float, phase: str):
+        t = self._get_time_x(x)
+        self._add_step(t, "update_x_position", (x,), f"{phase}: Moving X to {x}.")
+    
+    def _move_y(self, y: float, phase: str):
+        t = self._get_time_y(y)
+        self._add_step(t, "update_y_position", (y,), f"{phase}: Moving Y to {y}.")
+
+
 
 
     def _build_sequence_internal(self, slot_from, slot_to) -> bool:
@@ -32,33 +50,30 @@ class WarehouseController:
             return False
             
         self.current_move_sequence = []
+        platform=self.wh.platform
 
-        # --- PHASE 2: PLACE (Action that will happen last) ---
-        # 1. Calculate time to retract from X to 0.0
-        time_retract_2 = self._get_time_x(0.0)
-        self.current_move_sequence.append((time_retract_2, "update_x_position", (0.0,), "PLACE: Retraction complete. IDLE."))
-        # 2. Place the tray into the destination slot (instantaneous action)
-        self.current_move_sequence.append((0.0, "place_into", (slot_to,), f"PLACE: Tray placed into {slot_to.position_id}."))
-        # 3. Calculate time to extend to destination X
-        time_extend_2 = self._get_time_x(slot_to.x)
-        self.current_move_sequence.append((time_extend_2, "update_x_position", (slot_to.x,), f"PLACE: Extending to X={slot_to.x}."))
-        # 4. Calculate time to move Y to destination
-        time_y_place = self._get_time_y(slot_to.y)
-        self.current_move_sequence.append((time_y_place, "update_y_position", (slot_to.y,), f"PLACE: Moving Y to {slot_to.position_id}."))
+        # ------------------------
+        # 1. PICKUP PHASE 
+        # ------------------------
 
-        # --- PHASE 1: PICKUP (Action that will happen first) ---
-        # 5. Calculate time to retract X to 0.0 after pickup
-        time_retract_1 = self._get_time_x(0.0)
-        self.current_move_sequence.append((time_retract_1, "update_x_position", (0.0,), "PICKUP: Retraction complete."))
-        # 6. Pick up the tray from the source slot (instantaneous action)
-        self.current_move_sequence.append((0.0, "pick_up_from", (slot_from,), f"PICKUP: Tray picked up from {slot_from.position_id}."))
-        # 7. Calculate time to extend to source X
-        time_extend_1 = self._get_time_x(slot_from.x)
-        self.current_move_sequence.append((time_extend_1, "update_x_position", (slot_from.x,), f"PICKUP: Extending to X={slot_from.x}."))
-        # 8. Calculate time to move Y to source
-        time_y_pickup = self._get_time_y(slot_from.y)
-        self.current_move_sequence.append((time_y_pickup, "update_y_position", (slot_from.y,), f"PICKUP: Moving Y to {slot_from.position_id}."))
+        self._move_y(slot_from, "PICKUP")
+        self._move_x(slot_from.x, "PICKUP")
+
+        self._add_step(0.0,"pick_up_from", (slot_from), f"PICKUP: tray from {slot_from.position_id}.")
+
+        self._move_x(0.0,"PICKUP")
+
+        # -----------------
+        # 2. PLACE PHASE 
+        # ------------------
         
+
+        self._move_y(slot_to, "PLACE")
+        self._move_x(slot_to.x, "PLACE")
+
+        self._add_step(0.0, "place_into", (slot_to), f"PLACE: tray into {slot_to.position_id}.")
+
+        self._move_x(0.0,"PLACE")
         return True
     
     # ---------------------------------------------------------------------
