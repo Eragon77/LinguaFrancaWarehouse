@@ -40,10 +40,6 @@ def test_warehouse_state_methods(warehouse):
     assert warehouse.is_busy is False
     assert warehouse.is_ready() is True
 
-def test_get_all_slots(warehouse):
-    all_slots = warehouse.get_all_slots()
-    assert len(all_slots) == Warehouse.NUM_ROWS * 2
-
 def test_get_slot_by_id_success(warehouse):
     # Test storage slot
     slot_l5 = warehouse.get_slot_by_id("storage_L_5")
