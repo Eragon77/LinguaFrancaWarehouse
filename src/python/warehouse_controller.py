@@ -1,37 +1,28 @@
 import logging
+from typing import List,Tuple,Callable,Optional
+
+Step=Tuple[float,str,tuple,str] # (time, function_name, args, message)
 
 class WarehouseController:
     def __init__(self, warehouse):
         self.wh = warehouse
-        self.current_move_sequence = []
+        self.current_move_sequence: List[Step]=[]
 
     # --- TIME CALCULATION HELPERS ---
 
+    def _compute_time(self,distance:float, speed:float, axis:str)->float:
+        if speed==0:
+            logging.error(f"[TIME FAIL] Speed on axis {axis} is zero.")
+            return 0.0
+        return abs(distance)/speed
+
     def _get_time_y(self, target_y: float) -> float:
         platform = self.wh.platform
-        d = abs(target_y - platform.curr_y)
-        
-        try:
-            return d/platform.speed_y
-        except ZeroDivisionError:
-            logging.error(f"[TIME CALC FAIL]: Platform speed_y is zero for distance {d}. Returning 0.0 time")
-            return 0.0
-        except AttributeError:
-            logging.error("[TIME CALC FAIL] Platform object or speed_y attribute not found.")
-            return 0.0
+        return self._compute_time(target_y-platform.curr_y, platform.speed_y, "Y")
     
     def _get_time_x(self, target_x: float) -> float:
         platform = self.wh.platform
-        d = abs(target_x - platform.curr_x)
-        
-        try:
-            return d/platform.extract_speed
-        except ZeroDivisionError:
-             logging.error(f"[TIME CALC FAIL]: Platform speed_x is zero for distance {d}. Returning 0.0 time")
-        except AttributeError:
-            logging.error("[TIME CALC FAIL] Platform object or speed_x attribute not found.")
-            return 0.0
-
+        return self._compute_time(target_x - platform.curr_x, platform.extract_speed, "X")
 
 
     def _build_sequence_internal(self, slot_from, slot_to) -> bool:
