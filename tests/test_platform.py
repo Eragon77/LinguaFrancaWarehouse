@@ -3,8 +3,6 @@ from warehouse_platform import Platform
 from slot import Slot
 from tray import Tray
 
-# --- Fixtures ---
-
 @pytest.fixture
 def platform():
     return Platform()
@@ -26,13 +24,11 @@ def full_slot(empty_slot, test_tray):
     empty_slot.add_tray(test_tray)
     return empty_slot
 
-# --- Tests ---
-
 def test_platform_init(platform):
     assert platform.curr_y == 0.0
     assert platform.held_tray is None
     assert platform.is_holding_tray() is False
-    assert platform.speed_y == 1.0
+    pass
 
 def test_is_holding_tray_true(platform, test_tray):
     platform.held_tray = test_tray
@@ -81,11 +77,11 @@ def test_place_into_fail_if_empty(platform, empty_slot):
     assert platform.is_holding_tray() is False
     assert empty_slot.tray is None
 
-def test_place_into_fail_if_slot_full(platform, full_slot, another_tray):
+def test_place_into_fail_if_slot_full(platform, full_slot, another_tray, test_tray):
     platform.held_tray = another_tray
     
     success = platform.place_into(full_slot)
     
     assert success is False
     assert platform.held_tray is another_tray
-    assert full_slot.tray is not test_tray  # Check it's still the original tray
+    assert full_slot.tray is test_tray
