@@ -1,5 +1,5 @@
 import logging
-from typing import List,Tuple,Callable,Optional
+from typing import List,Tuple
 
 Step=Tuple[float,str,tuple,str] # (time, function_name, args, message)
 
