@@ -9,13 +9,8 @@ class Warehouse:
     NUM_ROWS = 20 
 
     def __init__(self):
-        # IMPORTANT: Reset the ID counter in Tray class for reproducible initialization
-        # This assumes Tray class now has the static variable Tray._next_id
-        try:
-            Tray._next_id = 1 
-        except AttributeError:
-            # Fallback if Tray is not yet fully defined or lacks _next_id
-            pass
+        Tray._next_id = 1 
+
             
         # --- Physical Components ---
         self.platform = Platform()
@@ -41,7 +36,7 @@ class Warehouse:
                 new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
                 self.queued_slots.append(new_slot)
             
-            elif i == 3: # Row 3 (In View / Extraction Bay)
+            elif i == 3: # Row 3 (Extraction Bay)
                 slot_id = "in_view"
                 new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
                 self.in_view_slot = new_slot
@@ -54,23 +49,18 @@ class Warehouse:
         try:
             # --- Initialize Trays: They get sequential IDs 1, 2, 3, 4, 5 ---
             
-            # Tray 1: ID 1
             tray1 = Tray(weight=3.5)
             self.get_slot_by_id("storage_L_0").add_tray(tray1)
             
-            # Tray 2: ID 2
             tray2 = Tray(weight=2.9)
             self.get_slot_by_id("storage_L_5").add_tray(tray2)
 
-            # Tray 3: ID 3
             tray3=Tray(weight=2.6)
             self.get_slot_by_id("storage_R_7").add_tray(tray3)
             
-            # Tray 4: ID 4
             tray4 = Tray(weight=3.0)
             self.get_slot_by_id("storage_L_10").add_tray(tray4)
 
-            # Tray 5: ID 5 (THE TARGET TRAY for ENQUEUE)
             tray5 = Tray(weight=3.1)
             self.get_slot_by_id("storage_R_15").add_tray(tray5) 
             
