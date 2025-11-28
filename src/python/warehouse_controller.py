@@ -11,8 +11,8 @@ class WarehouseController:
     # --- TIME CALCULATION HELPERS ---
 
     def _compute_time(self,distance:float, speed:float, axis:str)->float:
-        if speed==0:
-            logging.error(f"[TIME FAIL] Speed on axis {axis} is zero.")
+        if speed<=0:
+            logging.error(f"[TIME FAIL] Speed on axis {axis} is less than or equal to zero.")
             return 0.0
         return abs(distance)/speed
 
@@ -39,9 +39,6 @@ class WarehouseController:
     def _move_y(self, y: float, phase: str):
         t = self._get_time_y(y)
         self._add_step(t, "update_y_position", (y,), f"{phase}: Moving Y to {y}.")
-
-
-
 
     def _build_sequence_internal(self, slot_from, slot_to) -> bool:
         """Internal helper to build the PICKUP -> PLACE sequence."""
@@ -124,7 +121,6 @@ class WarehouseController:
     def build_extract_sequence(self) -> bool:
         """
         Builds the sequence to move the first tray from the occupied queue slot to the extraction bay (in_view_slot).
-        This command does not accept a tray_id.
         """
         # 1. Source: Find the first occupied slot in the queue
         slot_from = self.wh.get_occupied_queue_slot()
@@ -155,7 +151,7 @@ class WarehouseController:
         return self.current_move_sequence.pop(0)
     
     def execute_step(self, function_name, args):
-        """ Executes the logical/physical step requested by LF. """
+        """ Executes the step requested by LF. """
         platform = self.wh.platform
         try:
             method = getattr(platform, function_name)
