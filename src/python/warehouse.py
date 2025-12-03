@@ -3,8 +3,8 @@ from slot import Slot
 from tray import Tray
 
 class Warehouse:
-    X_LEFT = -0.835
-    X_RIGHT = 0.835
+    X_LEFT = -0.7
+    X_RIGHT = 0.7
     SLOT_HEIGHT = 0.16725
     NUM_ROWS = 20 
 
@@ -36,7 +36,7 @@ class Warehouse:
                 new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
                 self.queued_slots.append(new_slot)
             
-            elif i == 3: # Row 3 (Extraction Bay)
+            elif i == 3: # Row 3 (Bay)
                 slot_id = "in_view"
                 new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
                 self.in_view_slot = new_slot
@@ -47,7 +47,7 @@ class Warehouse:
                 self.storage_slots.append(new_slot)
 
         try:
-            # --- Initialize Trays: They get sequential IDs 1, 2, 3, 4, 5 ---
+            # --- Initialize Trays: They get sequential IDs 1, 2, 3, 4, 5 ecc ecc ---
             
             tray1 = Tray(weight=3.5)
             self.get_slot_by_id("storage_L_0").add_tray(tray1)
@@ -161,3 +161,13 @@ class Warehouse:
         This slot is where the platform leaves the tray for visual inspection or manual removal.
         """
         return self.in_view_slot
+    
+
+    @property
+    def tray_in_bay(self) -> int:
+        """
+        Returns the ID of the tray currently in the bay, or 0 if it's empty.
+        """
+        if self.in_view_slot and self.in_view_slot.tray:
+            return self.in_view_slot.tray.tray_id
+        return 0
