@@ -175,7 +175,7 @@ class WarehouseController:
 
 
     #----------------------------------------
-    # ICE FROST DATAMODEL/WAREHOUSE methods.
+    # ICE FROST (?) methods.
     #----------------------------------------
 
     def extract(self, TrayNumber: int=0)->bool:
