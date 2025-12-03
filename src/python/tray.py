@@ -12,9 +12,9 @@ class Tray:
         Tray._next_id += 1
         
         # --- Fixed Physical Dimensions ---
-        self.length = 2.134
+        self.length = 1.62
         self.height = 0.16725
-        self.width = 0.83
+        self.width = 0.7
         
         self.weight = weight if weight is not None else self.MIN_W
     
@@ -33,3 +33,4 @@ class Tray:
 
     def get_width(self):
         return self.width
+    
