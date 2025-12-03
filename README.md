@@ -21,4 +21,4 @@ Controller (Python): It manages the "Business Logic". It calculates the time req
 
 🤖 Note on AI Usage
 
-To ensure code clarity and maintainability, code comments and logging messages in this project were generated and refined with the assistance of Artificial Intelligence tools. The core logic and architecture were designed and implemented manually.
+To ensure code clarity and maintainability, code comments and logging messages,as well as a few tests in this project were generated and refined with the assistance of Artificial Intelligence tools. The core logic and architecture were designed and implemented manually.
