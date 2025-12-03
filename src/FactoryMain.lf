@@ -1,0 +1,65 @@
+target Python;
+
+import WarehouseUnit from "WarehouseUnit.lf"
+
+main reactor {
+    
+    wh_unit = new WarehouseUnit();
+
+    logical action trigger_next_command;
+
+    state production_schedule;
+    state current_step_index = 0;
+
+    reaction(startup) -> trigger_next_command {=
+        print("--- [SIMULATOR] STARTING PRODUCTION SCENARIO ---")
+    
+        self.production_schedule = [
+            (0.0, {"action": "enqueue_tray", "tray_id": 5}),
+            
+            (5.0, {"action": "extract_tray"}),
+            
+            (5.0, {"action": "send_back_tray"})
+        ]
+        trigger_next_command.schedule(0)
+    =}
+
+    reaction(trigger_next_command) -> wh_unit.command {=
+        if self.current_step_index < len(self.production_schedule):
+            
+            _, cmd = self.production_schedule[self.current_step_index]
+            
+            print(f"\n--- [SIMULATOR] Sending command #{self.current_step_index + 1}: {cmd['action']} ---")
+            
+            wh_unit.command.set(cmd)
+            
+        else:
+            print("\n--- [SIMULATOR] All tasks completed. Simulation End. ---")
+            request_stop()
+    =}
+
+    reaction(wh_unit.status) -> trigger_next_command {=
+        status = wh_unit.status.value
+        print(f"   -> [WAREHOUSE] Reported: {status}")
+
+        if status == "DONE":
+            self.current_step_index += 1
+            
+            if self.current_step_index < len(self.production_schedule):
+                # Read how long we must wait (e.g., 5 seconds)
+                wait_time_sec, _ = self.production_schedule[self.current_step_index]
+                
+                if wait_time_sec > 0:
+                    print(f"   ... [SIMULATOR] Waiting {wait_time_sec} seconds (simulating pause)...")
+                
+                delay_ns = int(wait_time_sec * 1_000_000_000)
+                trigger_next_command.schedule(delay_ns)
+            
+            else:
+                trigger_next_command.schedule(0)
+        
+        elif status == "ERROR":
+            print("!!! [SIMULATOR] Critical error in warehouse. Stopping. !!!")
+            request_stop()
+    =}
+}
