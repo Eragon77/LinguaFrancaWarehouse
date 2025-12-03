@@ -1,5 +1,5 @@
 import logging
-from typing import List,Tuple,Callable,Optional
+from typing import List,Tuple
 
 Step=Tuple[float,str,tuple,str] # (time, function_name, args, message)
 
@@ -99,7 +99,7 @@ class WarehouseController:
         logging.info(f"Building ENQUEUE sequence: {slot_from.position_id} -> {slot_to.position_id}")
         return self._build_sequence_internal(slot_from, slot_to)
 
-    def build_send_back_sequence(self) -> bool:
+    def build_sendback_sequence(self) -> bool:
         """
         Builds the sequence to move the tray from the occupied bay (in_view_slot) back to empty storage.
         """
@@ -172,3 +172,34 @@ class WarehouseController:
         self.wh.set_idle()
         
     def is_ready(self) -> bool: return self.wh.is_ready()
+
+
+    #----------------------------------------
+    # ICE FROST DATAMODEL/WAREHOUSE methods.
+    #----------------------------------------
+
+    def extract(self, TrayNumber: int=0)->bool:
+        return self.build_extract_sequence()
+    
+    def enqueueTray(self,TrayNumber:int)->bool:
+        return self.build_enqueue_sequence(str(TrayNumber))
+    
+    def sendback(self,TrayNumber: int=0)->bool:
+        return self.build_sendback_sequence()
+    
+    def requestInfoBay(self) -> str:
+        import json
+        tray_id = self.wh.tray_in_bay
+        status = "Occupied" if tray_id > 0 else "Empty"
+        return json.dumps({"status": status, "tray_id": tray_id})
+    
+    def clearBay(self) -> bool:
+        bay_slot = self.wh.get_tray_bay_slot()
+        if bay_slot and bay_slot.tray:
+            logging.info(f"CLEAR BAY: Removing tray {bay_slot.tray.tray_id}.")
+            try:
+                bay_slot.remove_tray()
+                return True
+            except ValueError:
+                return False
+        return True
