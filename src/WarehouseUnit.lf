@@ -1,0 +1,110 @@
+target Python {
+    files: [
+        "python/warehouse_platform.py",
+        "python/tray.py",
+        "python/slot.py",
+        "python/warehouse.py",
+        "python/warehouse_controller.py",
+    ]
+};
+
+preamble{=
+    from warehouse import Warehouse
+    from warehouse_controller import WarehouseController
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO, 
+        format="%(asctime)s - %(message)s",
+        filename="logfile.log", 
+        filemode="w"             
+    )
+=}
+
+reactor WarehouseUnit {
+    input command;      # Receives a dictionary: {"action": "...", ...}
+    output status;      # Sends status messages: "DONE", "ERROR"
+
+    # --- STATES ---
+    state wh
+    state wh_ctrl
+    
+    # Logical action to handle steps
+    logical action execute_step;
+
+    # 1. Initialization
+    reaction(startup) {=
+        self.wh = Warehouse()
+        self.wh_ctrl = WarehouseController(self.wh)
+        logging.info("[LF] Warehouse Unit Ready and Listening.")
+    =}
+
+    # 2. Receive command
+    reaction(command) -> execute_step, status {=
+        cmd = command.value
+        logging.info(f"[LF] Received command: {cmd}")
+        
+        success = False
+        action = cmd.get("action")
+
+        # JSON commands -> Python Controller methods
+        if action == "enqueue_tray":
+            success = self.wh_ctrl.enqueueTray(int(cmd["tray_id"]))
+        
+        elif action == "extract_tray":
+            success = self.wh_ctrl.extract() # FIFO, no ID needed
+            
+        elif action == "send_back_tray":
+            success = self.wh_ctrl.sendback() # From Bay, no ID needed
+            
+        elif action == "clear_bay":
+            success = self.wh_ctrl.clearBay()
+
+        else:
+            logging.error(f"[LF] Unknown action: {action}")
+
+        # If command accepted, start first step
+        if success:
+            self.wh_ctrl.set_busy()
+            time, method, args, msg = self.wh_ctrl.get_next_step()
+            
+            if time is not None:
+                # Schedule the first step
+                # Convert seconds to nanoseconds for schedule
+                delay_ns = int(time * 1_000_000_000) 
+                execute_step.schedule(delay_ns, (method, args, msg))
+            else:
+                self.wh_ctrl.set_idle()
+                status.set("DONE")
+        else:
+            status.set("ERROR")
+    =}
+
+    # 3. Physical Step Execution
+    reaction(execute_step) -> execute_step, status {=
+        method_name, args, msg = execute_step.value
+        
+        # Execute the physical action
+        logging.info(f"[LF] Executing: {msg}")
+        res = self.wh_ctrl.execute_step(method_name, args)
+
+        if not res:
+            logging.error(f"[LF] Physical Step Failed: {msg}")
+            self.wh_ctrl.set_idle()
+            status.set("ERROR")
+            return
+
+        # Prepare next step
+        time, next_method, next_args, next_msg = self.wh_ctrl.get_next_step()
+
+        if time is not None:
+            # Schedule next step
+            delay_ns = int(time * 1_000_000_000)
+            execute_step.schedule(delay_ns, (next_method, next_args, next_msg))
+        else:
+            # Sequence finished
+            logging.info("[LF] Sequence Complete.")
+            self.wh_ctrl.set_idle()
+            status.set("DONE") # Notify that wh is free
+    =}
+}
