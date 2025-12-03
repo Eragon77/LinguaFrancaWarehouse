@@ -7,9 +7,9 @@ class Slot:
         self.position_id = position_id
         
         # Defines the physical size of the slot
-        self.length = 2.134
+        self.length = 1.62
         self.height = 0.16725
-        self.width = 0.835
+        self.width = 0.7
 
         # Holds the Tray object if occupied, otherwise None.
         self.tray = None
