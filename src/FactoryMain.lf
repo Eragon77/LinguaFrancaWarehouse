@@ -1,65 +1,66 @@
-target Python;
+target Python {
+    timeout: 2 min,
+    files: ["utils/", "python/"]
+};
 
 import WarehouseUnit from "WarehouseUnit.lf"
 
-main reactor {
+preamble {=
+    import os
+    import sys
     
-    wh_unit = new WarehouseUnit();
+    # Add current directory to path to locate copied modules
+    sys.path.append(os.path.dirname(__file__))
 
+    from utils.utils import load_commands
+=}
+
+main reactor {
+    wh_unit = new WarehouseUnit();
     logical action trigger_next_command;
 
-    state production_schedule;
-    state current_step_index = 0;
+    state command_list;
+    state commands_left = 0;
 
     reaction(startup) -> trigger_next_command {=
-        print("--- [SIMULATOR] STARTING PRODUCTION SCENARIO ---")
-    
-        self.production_schedule = [
-            (0.0, {"action": "enqueue_tray", "tray_id": 5}),
-            
-            (5.0, {"action": "extract_tray"}),
-            
-            (5.0, {"action": "send_back_tray"})
-        ]
+        print("--- [MAIN] Simulation Start ---")
+        
+        # Load commands (expects reversed list from utils for pop())
+        self.command_list = load_commands("commands.yaml")
+        
+        if not self.command_list:
+            print("--- [MAIN] ERROR: No commands loaded. ---")
+            request_stop()
+            return
+
+        self.commands_left = len(self.command_list)
+        print(f"--- [MAIN] Loaded {self.commands_left} commands. ---")
+        
         trigger_next_command.schedule(0)
     =}
 
     reaction(trigger_next_command) -> wh_unit.command {=
-        if self.current_step_index < len(self.production_schedule):
+        if self.commands_left > 0:
+            cmd = self.command_list.pop()
+            self.commands_left -= 1
             
-            _, cmd = self.production_schedule[self.current_step_index]
-            
-            print(f"\n--- [SIMULATOR] Sending command #{self.current_step_index + 1}: {cmd['action']} ---")
-            
+            print(f"\n[MAIN] Sending: {cmd.get('action')} (ID: {cmd.get('tray_id', 'N/A')})")
             wh_unit.command.set(cmd)
-            
         else:
-            print("\n--- [SIMULATOR] All tasks completed. Simulation End. ---")
+            print("\n--- [MAIN] All commands finished. ---")
             request_stop()
     =}
 
     reaction(wh_unit.status) -> trigger_next_command {=
         status = wh_unit.status.value
-        print(f"   -> [WAREHOUSE] Reported: {status}")
-
-        if status == "DONE":
-            self.current_step_index += 1
-            
-            if self.current_step_index < len(self.production_schedule):
-                # Read how long we must wait (e.g., 5 seconds)
-                wait_time_sec, _ = self.production_schedule[self.current_step_index]
-                
-                if wait_time_sec > 0:
-                    print(f"   ... [SIMULATOR] Waiting {wait_time_sec} seconds (simulating pause)...")
-                
-                delay_ns = int(wait_time_sec * 1_000_000_000)
-                trigger_next_command.schedule(delay_ns)
-            
-            else:
-                trigger_next_command.schedule(0)
         
+        if status == "DONE":
+            print("[MAIN] Status: DONE.")
+            # Wait 1s before next command
+            trigger_next_command.schedule(1_000_000_000)
+            
         elif status == "ERROR":
-            print("!!! [SIMULATOR] Critical error in warehouse. Stopping. !!!")
+            print("[MAIN] Status: ERROR. Stopping.")
             request_stop()
     =}
 }

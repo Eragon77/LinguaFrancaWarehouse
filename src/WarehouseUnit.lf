@@ -9,6 +9,10 @@ target Python {
 };
 
 preamble{=
+    import sys
+    import os
+    # Aggiunge la cartella 'python' al percorso di ricerca moduli
+    sys.path.append(os.path.join(os.path.dirname(__file__), "python"))
     from warehouse import Warehouse
     from warehouse_controller import WarehouseController
     import logging
