@@ -1,6 +1,6 @@
 target Python {
     timeout: 2 min,
-    files: ["utils/", "python/"]
+    files: ["../python/", "../models/", "../frost/", "../utils/"]
 };
 
 import WarehouseUnit from "WarehouseUnit.lf"
@@ -9,10 +9,14 @@ preamble {=
     import os
     import sys
     
-    # Add current directory to path to locate copied modules
-    sys.path.append(os.path.dirname(__file__))
+    curr_dir = os.path.dirname(__file__)
+    
+    sys.path.append(os.path.join(curr_dir, "python"))
+    sys.path.append(os.path.join(curr_dir, "utils"))
+    sys.path.append(os.path.join(curr_dir, "frost"))
+    sys.path.append(os.path.join(curr_dir, "frost/src"))
 
-    from utils.utils import load_commands
+    from utils import load_commands
 =}
 
 main reactor {
