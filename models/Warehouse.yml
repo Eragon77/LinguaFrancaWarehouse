@@ -16,6 +16,9 @@ root: !!machine_data_model.nodes.folder_node.FolderNode
         - !!machine_data_model.nodes.numerical_variable_node.NumericalVariableNode
           name: "tray_at_bay"
           initial_value: 0
+        - !!machine_data_model.nodes.boolean_variable_node.BooleanVariableNode
+          name: "Busy"
+          initial_value: false  
     - !!machine_data_model.nodes.folder_node.FolderNode
       name: "Control"
       children:

@@ -86,6 +86,9 @@ reactor WarehouseUnit extends FrostMachine {
             return
         
         self.wh_ctrl.set_busy()
+        busy_node = self.data_model.get_node("Warehouse/Status/Busy")
+        if busy_node:
+            busy_node.value = True
         time_delay, method, args, msg = self.wh_ctrl.get_next_step()
 
         if time_delay is not None:
