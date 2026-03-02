@@ -1,5 +1,5 @@
 name: "Warehouse"
-machine_category: "unknown"
+machine_category: "Logistics"
 machine_type: "unknown"
 machine_model: "unwknown"
 description: "Data model for automated vertical warehouse"

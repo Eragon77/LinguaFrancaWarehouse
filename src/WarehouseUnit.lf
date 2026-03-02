@@ -1,4 +1,8 @@
 target Python {
+    fast: True,
+    logging: info,
+    single-threaded: false,
+    # Source files for the warehouse simulation
     files: [
         "python/warehouse_platform.py",
         "python/tray.py",
@@ -8,107 +12,135 @@ target Python {
     ]
 };
 
-preamble{=
+import FrostMachine from "../frost/src/lib/FrostMachine.lf"
+
+preamble {=
     import sys
     import os
-    # Aggiunge la cartella 'python' al percorso di ricerca moduli
+    import uuid
+    # Frost message objects for communication
+    from frost import FrostMessage, FrostHeader, MsgType, MsgNamespace, MethodMsgName, MethodPayload
+    
     sys.path.append(os.path.join(os.path.dirname(__file__), "python"))
     from warehouse import Warehouse
     from warehouse_controller import WarehouseController
-    import logging
-
-    logging.basicConfig(
-        level=logging.INFO, 
-        format="%(asctime)s - %(message)s",
-        filename="logfile.log", 
-        filemode="w"             
-    )
 =}
 
-reactor WarehouseUnit {
-    input command;      # Receives a dictionary: {"action": "...", ...}
-    output status;      # Sends status messages: "DONE", "ERROR"
+reactor WarehouseUnit extends FrostMachine {
 
     # --- STATES ---
     state wh
     state wh_ctrl
     
-    # Logical action to handle steps
+    # Store request metadata for response correlation
+    state current_request_id = {=None=}
+    state current_request_sender = {=None=}
+    
+    # Logical action to handle sequential physical steps
     logical action execute_step;
 
-    # 1. Initialization
+    # 1. Initialization and Callback Binding
     reaction(startup) {=
+        if not os.path.exists(self.data_model_path):
+            self.logger.error(f"Data model not found at: {self.data_model_path}")
+            lf.request_stop()
+            return
+
+        # Initialize physical model and controller
         self.wh = Warehouse()
         self.wh_ctrl = WarehouseController(self.wh)
-        logging.info("[LF] Warehouse Unit Ready and Listening.")
+
+        # Map YAML nodes to Python controller methods
+        nodes_to_bind = {
+            "Warehouse/Actions/extract": self.wh_ctrl.extract,
+            "Warehouse/Actions/enqueueTray": self.wh_ctrl.enqueueTray,
+            "Warehouse/Actions/sendback": self.wh_ctrl.sendback,
+            "Warehouse/Actions/clearBay": self.wh_ctrl.clearBay
+        }
+
+        for path, func in nodes_to_bind.items():
+            node = self.data_model.get_node(path)
+            if node:
+                node.callback = func
+                self.logger.info(f"[FROST] Linked node {path}")
+
+        self.logger.info("[LF] Warehouse Unit Ready and Listening.")
     =}
 
-    # 2. Receive command
-    reaction(command) -> execute_step, status {=
-        cmd = command.value
-        logging.info(f"[LF] Received command: {cmd}")
-        
-        success = False
-        action = cmd.get("action")
-
-        # JSON commands -> Python Controller methods
-        if action == "enqueue_tray":
-            success = self.wh_ctrl.enqueueTray(int(cmd["tray_id"]))
-        
-        elif action == "extract_tray":
-            success = self.wh_ctrl.extract() # FIFO, no ID needed
-            
-        elif action == "send_back_tray":
-            success = self.wh_ctrl.sendback() # From Bay, no ID needed
-            
-        elif action == "clear_bay":
-            success = self.wh_ctrl.clearBay()
-
-        else:
-            logging.error(f"[LF] Unknown action: {action}")
-
-        # If command accepted, start first step
-        if success:
-            self.wh_ctrl.set_busy()
-            time, method, args, msg = self.wh_ctrl.get_next_step()
-            
-            if time is not None:
-                # Schedule the first step
-                # Convert seconds to nanoseconds for schedule
-                delay_ns = int(time * 1_000_000_000) 
-                execute_step.schedule(delay_ns, (method, args, msg))
-            else:
-                self.wh_ctrl.set_idle()
-                status.set("DONE")
-        else:
-            status.set("ERROR")
+    # 2. Extract and Store Request IDs from Bus
+    reaction(message_filter.requests) {=
+        for bank_index, msg in message_filter.requests.value:
+            # Catch INVOKE method requests to track completion
+            if msg.header.namespace == MsgNamespace.METHOD and msg.header.msg_name == MethodMsgName.INVOKE:
+                self.current_request_id = msg.identifier
+                self.current_request_sender = msg.sender
+                self.logger.info(f"[FROST] Intercepted Request ID: {self.current_request_id} from {msg.sender}")
     =}
 
-    # 3. Physical Step Execution
-    reaction(execute_step) -> execute_step, status {=
+    # Periodic check for pending command sequences
+    timer check_sequence(0, 50 msec)
+
+    # 3. Trigger first step if controller is ready
+    reaction(check_sequence) -> execute_step {=
+        if not self.wh_ctrl.is_ready() or not self.wh_ctrl.current_move_sequence:
+            return
+        
+        self.wh_ctrl.set_busy()
+        time_delay, method, args, msg = self.wh_ctrl.get_next_step()
+
+        if time_delay is not None:
+            # Schedule execution based on physical time delay
+            delay_ns = int(time_delay * 1_000_000_000)
+            execute_step.schedule(delay_ns, (method, args, msg))
+    =}
+
+    # 4. Recursive Physical Step Execution
+    reaction(execute_step) -> execute_step, channel_out {=
         method_name, args, msg = execute_step.value
         
-        # Execute the physical action
-        logging.info(f"[LF] Executing: {msg}")
+        # Perform physical simulation step
+        self.logger.info(f"[EXEC] {msg}")
         res = self.wh_ctrl.execute_step(method_name, args)
 
         if not res:
-            logging.error(f"[LF] Physical Step Failed: {msg}")
+            self.logger.error(f"[LF] Physical Step Failed: {msg}")
             self.wh_ctrl.set_idle()
-            status.set("ERROR")
             return
 
-        # Prepare next step
-        time, next_method, next_args, next_msg = self.wh_ctrl.get_next_step()
+        # Fetch next step in sequence
+        time_delay, next_method, next_args, next_msg = self.wh_ctrl.get_next_step()
 
-        if time is not None:
-            # Schedule next step
-            delay_ns = int(time * 1_000_000_000)
+        if time_delay is not None:
+            # Continue sequence execution
+            delay_ns = int(time_delay * 1_000_000_000)
             execute_step.schedule(delay_ns, (next_method, next_args, next_msg))
         else:
-            # Sequence finished
-            logging.info("[LF] Sequence Complete.")
+            # Task finished: send response to bus
+            self.logger.info("[LF] Sequence Complete.")
             self.wh_ctrl.set_idle()
-            status.set("DONE") # Notify that wh is free
+
+            if self.current_request_id is not None:
+                # Create Frost response message
+                response_msg = FrostMessage(
+                    sender=self.name,
+                    target=self.current_request_sender,
+                    identifier=str(uuid.uuid4()),
+                    correlation_id=self.current_request_id, 
+                    header=FrostHeader(
+                        type=MsgType.RESPONSE,
+                        version=(1, 0, 0),
+                        namespace=MsgNamespace.METHOD,
+                        msg_name=MethodMsgName.COMPLETED,
+                    ),
+                    payload=MethodPayload(node="", args=[], kwargs={})
+                )
+                
+                # Transmit completion to Bus
+                self._set_channel_out_port(response_msg, channel_out)
+                self.logger.info(f"[FROST] Sent COMPLETED to {self.current_request_sender}")
+                
+                # Clear request state
+                self.current_request_id = None
+                self.current_request_sender = None
     =}
 }

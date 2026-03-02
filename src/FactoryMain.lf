@@ -1,70 +1,37 @@
 target Python {
-    timeout: 2 min,
-    files: ["../python/", "../models/", "../frost/", "../utils/"]
+    timeout: 5 min,
+    fast: True,
+    logging: info,
+    single-threaded: false,
+    # Include all required source directories
+    files: ["../python/", "../models/", "../frost/"] 
 };
 
+# Core Frost components and local reactor imports
+import FrostBus from "../frost/src/lib/FrostBus.lf"
+import FrostScheduler from "../frost/src/lib/scheduler/FrostScheduler.lf" 
 import WarehouseUnit from "WarehouseUnit.lf"
 
-preamble {=
-    import os
-    import sys
+main reactor FactoryMain {
     
-    curr_dir = os.path.dirname(__file__)
+    # Central communication bus (2 ports: scheduler + warehouse)
+    bus = new FrostBus(name="frost_bus", width=2)
     
-    sys.path.append(os.path.join(curr_dir, "python"))
-    sys.path.append(os.path.join(curr_dir, "utils"))
-    sys.path.append(os.path.join(curr_dir, "frost"))
-    sys.path.append(os.path.join(curr_dir, "frost/src"))
+    # Orchestration unit using production plan and YAML model
+    scheduler = new FrostScheduler(
+        _scheduling_instance="models/production_plan.json",
+        _data_model_path="models/Scheduler.yml"
+    )
 
-    from utils import load_commands
-=}
-
-main reactor {
-    wh_unit = new WarehouseUnit();
-    logical action trigger_next_command;
-
-    state command_list;
-    state commands_left = 0;
-
-    reaction(startup) -> trigger_next_command {=
-        print("--- [MAIN] Simulation Start ---")
-        
-        # Load commands (expects reversed list from utils for pop())
-        self.command_list = load_commands("commands.yaml")
-        
-        if not self.command_list:
-            print("--- [MAIN] ERROR: No commands loaded. ---")
-            request_stop()
-            return
-
-        self.commands_left = len(self.command_list)
-        print(f"--- [MAIN] Loaded {self.commands_left} commands. ---")
-        
-        trigger_next_command.schedule(0)
-    =}
-
-    reaction(trigger_next_command) -> wh_unit.command {=
-        if self.commands_left > 0:
-            cmd = self.command_list.pop()
-            self.commands_left -= 1
-            
-            print(f"\n[MAIN] Sending: {cmd.get('action')} (ID: {cmd.get('tray_id', 'N/A')})")
-            wh_unit.command.set(cmd)
-        else:
-            print("\n--- [MAIN] All commands finished. ---")
-            request_stop()
-    =}
-
-    reaction(wh_unit.status) -> trigger_next_command {=
-        status = wh_unit.status.value
-        
-        if status == "DONE":
-            print("[MAIN] Status: DONE.")
-            # Wait 1s before next command
-            trigger_next_command.schedule(1_000_000_000)
-            
-        elif status == "ERROR":
-            print("[MAIN] Status: ERROR. Stopping.")
-            request_stop()
-    =}
+    # Physical machine unit using Warehouse YAML model
+    warehouse = new WarehouseUnit(
+        _data_model_path="models/Warehouse.yml",
+        name="warehouse"
+    )
+    
+    # Connect outputs to bus input
+    scheduler.channel_out, warehouse.channel_out -> bus.channel_in
+    
+    # Broadcast bus output to all units with 10ms delay
+    bus.channel_out -> scheduler.channel_in, warehouse.channel_in after 10 msec
 }
