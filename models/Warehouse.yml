@@ -1,0 +1,31 @@
+name: "Warehouse"
+machine_category: "unknown"
+machine_type: "unknown"
+machine_model: "unwknown"
+description: "Data model for automated vertical warehouse"
+
+root: !!machine_data_model.nodes.folder_node.FolderNode
+  name: "Warehouse"
+  children:
+    - !!machine_data_model.nodes.folder_node.FolderNode
+      name: "Status"
+      children:
+        - !!machine_data_model.nodes.numerical_variable_node.NumericalVariableNode
+          name: "pos_y"
+          initial_value: 0.0
+        - !!machine_data_model.nodes.numerical_variable_node.NumericalVariableNode
+          name: "tray_at_bay"
+          initial_value: 0
+    - !!machine_data_model.nodes.folder_node.FolderNode
+      name: "Control"
+      children:
+        - !!machine_data_model.nodes.numerical_variable_node.NumericalVariableNode
+          name: "target_y"
+          initial_value: 0.0
+    - !!machine_data_model.nodes.folder_node.FolderNode
+      name: "Actions"
+      children:
+        - !!machine_data_model.nodes.method_node.MethodNode
+          name: "extract"
+        - !!machine_data_model.nodes.method_node.MethodNode
+          name: "sendback"

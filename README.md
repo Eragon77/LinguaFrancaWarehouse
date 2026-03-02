@@ -51,7 +51,6 @@ To ensure code clarity and maintainability, code comments, logging messages, and
 📚 Credits & Citations
 This project utilizes the Frost Framework, a simulation platform developed by the Glacier Project. If you use this work, please cite the original paper:
 
-Snippet di codice
 @inproceedings{frost:indin:2025,
   author    = {Turco, Pietro and Gaiardelli, Sebastiano and Fraccaroli, Enrico and Lora, Michele and Chakraborty, Samarjit and Fummi, Franco},
   booktitle = {2025 IEEE 23rd International Conference on Industrial Informatics (INDIN)},
