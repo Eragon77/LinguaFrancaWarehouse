@@ -1,4 +1,16 @@
-[tool.pytest.ini_options]
-pythonpath = [
-  "src/python"
-]
+[tool.poetry]
+name = "lingua-franca-warehouse"
+version = "0.1.0"
+description = "My Warehouse Project"
+authors = ["Luca <luca.quaresima@studenti.univr.it>"]
+
+packages = [{include = "machine_data_model"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pyyaml = "^6.0"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
