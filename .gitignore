@@ -1,10 +1,23 @@
+# Lingua Franca
 src-gen/
 bin/
+
+# Python
 __pycache__/
-include/
+*.py[cod]
+*$py.class
 .venv/
-logfile.log.coverage
-tox.ini
+env/
+venv/
+.tox/
+.coverage
+.pytest_cache/
+
+# Logs
 *.log
-config.yml
-frost_config.yml
+crash.log
+logfile.log
+warehouse_unit.log
+
+# OS
+.DS_Store
