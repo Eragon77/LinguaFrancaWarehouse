@@ -20,4 +20,8 @@ logfile.log
 warehouse_unit.log
 
 # OS
-.DS_Store
+.DS_Storeconfig.yml
+frost_config.yml
+tox.ini
+include/
+config.yml
