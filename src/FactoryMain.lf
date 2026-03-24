@@ -1,33 +1,42 @@
 target Python {
     timeout: 2 min,
     fast: True,
-    logging: info
+    files: [
+        "../frost/src/python_lib/frost.py",
+        "../frost/src/python_lib/l_formatter.py",
+        "../frost/src/python_lib/time_utils.py",
+        "python/warehouse_platform.py",
+        "python/tray.py",
+        "python/slot.py",
+        "python/warehouse.py",
+        "python/warehouse_controller.py"
+    ],
+    logging: error
 };
 
 import FrostBus from "../frost/src/lib/FrostBus.lf"
-import FrostScheduler from "../frost/src/lib/scheduler/FrostScheduler.lf"
 import WarehouseUnit from "WarehouseUnit.lf"
 
 preamble {=
-    import builtins
+    import os
     import logging
     import uuid
+    from frost import *
 
-    try:
-        from frost import FrostMessage, FrostHeader, MsgType, MsgNamespace
-        # Optional: from frost.core.messages import MethodMsgName (if needed)
-    except ImportError as e:
-        print(f"CRITICAL: Could not import Frost core! Error: {e}")
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+    WH_PATH = os.path.join(BASE_DIR, "models", "warehouse.yml")
+    BUS_PATH = os.path.join(BASE_DIR, "models", "frost_bus.yml")
     
-    # Global Frost Configuration
-    builtins.FROST_CONFIG = {
+    FROST_CONFIG = {
         "reactors": {
             "warehouse": {
-                "data_model_path": "models/Warehouse.yml"
+                "parameters": {"data_model_path": WH_PATH}
             },
-            "scheduler": {
-                "data_model_path": "models/Scheduler.yml",
-                "scheduling_instance": "models/production_plan.json"
+            "frost_bus": {
+                "parameters": {"data_model_path": BUS_PATH}
+            },
+            "unnamed_reactor": {
+                "parameters": {"data_model_path": WH_PATH}
             }
         }
     }
@@ -35,18 +44,12 @@ preamble {=
 
 main reactor FactoryMain {
     
-    bus = new FrostBus(width=2)
-
-    scheduler = new FrostScheduler(
-        _data_model_path="models/Scheduler.yml",
-        _scheduling_instance="models/production_plan.json"
-    )
-
+    bus = new FrostBus(name="frost_bus", width=1)
+    
     warehouse = new WarehouseUnit(
-        _data_model_path="models/Warehouse.yml"
+        _data_model_path="models/warehouse.yml"
     )
 
-    # Connections
-    scheduler.channel_out, warehouse.channel_out -> bus.channel_in
-    bus.channel_out -> scheduler.channel_in, warehouse.channel_in after 10 msec
+    warehouse.channel_out -> bus.channel_in
+    bus.channel_out -> warehouse.channel_in after 10 msec
 }
