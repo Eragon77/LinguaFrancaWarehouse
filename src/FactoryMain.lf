@@ -1,66 +1,52 @@
 target Python {
     timeout: 2 min,
-    files: ["utils/", "python/"]
+    fast: True,
+    logging: info
 };
 
+import FrostBus from "../frost/src/lib/FrostBus.lf"
+import FrostScheduler from "../frost/src/lib/scheduler/FrostScheduler.lf"
 import WarehouseUnit from "WarehouseUnit.lf"
 
 preamble {=
-    import os
-    import sys
-    
-    # Add current directory to path to locate copied modules
-    sys.path.append(os.path.dirname(__file__))
+    import builtins
+    import logging
+    import uuid
 
-    from utils.utils import load_commands
+    try:
+        from frost import FrostMessage, FrostHeader, MsgType, MsgNamespace
+        # Optional: from frost.core.messages import MethodMsgName (if needed)
+    except ImportError as e:
+        print(f"CRITICAL: Could not import Frost core! Error: {e}")
+    
+    # Global Frost Configuration
+    builtins.FROST_CONFIG = {
+        "reactors": {
+            "warehouse": {
+                "data_model_path": "models/Warehouse.yml"
+            },
+            "scheduler": {
+                "data_model_path": "models/Scheduler.yml",
+                "scheduling_instance": "models/production_plan.json"
+            }
+        }
+    }
 =}
 
-main reactor {
-    wh_unit = new WarehouseUnit();
-    logical action trigger_next_command;
+main reactor FactoryMain {
+    
+    bus = new FrostBus(width=2)
 
-    state command_list;
-    state commands_left = 0;
+    scheduler = new FrostScheduler(
+        _data_model_path="models/Scheduler.yml",
+        _scheduling_instance="models/production_plan.json"
+    )
 
-    reaction(startup) -> trigger_next_command {=
-        print("--- [MAIN] Simulation Start ---")
-        
-        # Load commands (expects reversed list from utils for pop())
-        self.command_list = load_commands("commands.yaml")
-        
-        if not self.command_list:
-            print("--- [MAIN] ERROR: No commands loaded. ---")
-            request_stop()
-            return
+    warehouse = new WarehouseUnit(
+        _data_model_path="models/Warehouse.yml"
+    )
 
-        self.commands_left = len(self.command_list)
-        print(f"--- [MAIN] Loaded {self.commands_left} commands. ---")
-        
-        trigger_next_command.schedule(0)
-    =}
-
-    reaction(trigger_next_command) -> wh_unit.command {=
-        if self.commands_left > 0:
-            cmd = self.command_list.pop()
-            self.commands_left -= 1
-            
-            print(f"\n[MAIN] Sending: {cmd.get('action')} (ID: {cmd.get('tray_id', 'N/A')})")
-            wh_unit.command.set(cmd)
-        else:
-            print("\n--- [MAIN] All commands finished. ---")
-            request_stop()
-    =}
-
-    reaction(wh_unit.status) -> trigger_next_command {=
-        status = wh_unit.status.value
-        
-        if status == "DONE":
-            print("[MAIN] Status: DONE.")
-            # Wait 1s before next command
-            trigger_next_command.schedule(1_000_000_000)
-            
-        elif status == "ERROR":
-            print("[MAIN] Status: ERROR. Stopping.")
-            request_stop()
-    =}
+    # Connections
+    scheduler.channel_out, warehouse.channel_out -> bus.channel_in
+    bus.channel_out -> scheduler.channel_in, warehouse.channel_in after 10 msec
 }
