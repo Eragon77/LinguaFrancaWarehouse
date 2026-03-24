@@ -3,4 +3,8 @@ bin/
 __pycache__/
 include/
 .venv/
-logfile.log
+logfile.log.coverage
+tox.ini
+*.log
+config.yml
+frost_config.yml

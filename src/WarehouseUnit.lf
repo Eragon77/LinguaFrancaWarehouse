@@ -10,43 +10,119 @@ target Python {
 
 import FrostMachine from "../frost/src/lib/FrostMachine.lf"
 
-reactor WarehouseUnit extends FrostMachine {
+preamble {=
+    import sys
+    import os
+    import logging
     
-    state wh
-    state wh_ctrl
+    sys.path.append(os.path.join(os.path.dirname(__file__), "python"))
     
-    logical action execute_step;
+    from warehouse import Warehouse
+    from warehouse_controller import WarehouseController
 
+    logging.basicConfig(
+        level=logging.INFO, 
+        format="%(asctime)s - [WAREHOUSE] %(message)s",
+        filename="warehouse_unit.log", 
+        filemode="w"             
+    )
+=}
+
+/**
+ * Reactor representing a Warehouse unit.
+ * Manages physical state transitions and exposes control methods.
+ */
+reactor WarehouseUnit extends FrostMachine {
+
+    state current_state = {= None =}
+    state pos_y = {= None =}
+    state tray_at_bay = {= None =}
+    state is_busy = {= None =}
+    
+    state action_extract = {= None =}
+    state action_sendback = {= None =}
+
+    state wh = {= None =}
+    state wh_ctrl = {= None =}
+    
+    logical action execute_step
+
+    /** Initial setup and data model binding. */
     reaction(startup) {=
-        from warehouse import Warehouse
-        from warehouse_controller import WarehouseController
+        self.pos_y = self.data_model.get_node("Warehouse/Status/pos_y")
+        self.tray_at_bay = self.data_model.get_node("Warehouse/Status/tray_at_bay")
+        self.is_busy = self.data_model.get_node("Warehouse/Status/Busy")
         
-        # Initialize physical warehouse and controller
+        self.action_extract = self.data_model.get_node("Warehouse/Actions/extract")
+        self.action_sendback = self.data_model.get_node("Warehouse/Actions/sendback")
+
         self.wh = Warehouse()
         self.wh_ctrl = WarehouseController(self.wh)
         
-        self.logger.info("[WarehouseUnit] Physics initialized and linked to Frost.")
+        self.action_extract.callback = self.handle_extract
+        self.action_sendback.callback = self.handle_sendback
+
+        logging.info("Warehouse Unit Ready. Data Model bound.")
+        print("Initialized Warehouse with sample trays.")
     =}
 
+    /** Triggers extraction sequence. */
+    method handle_extract() {=
+        if self.is_busy.value:
+            logging.warning("Extract requested but warehouse is BUSY")
+            return False
+        
+        self.is_busy.value = True
+        success = self.wh_ctrl.extract()
+        
+        if success:
+            time, method, args, msg = self.wh_ctrl.get_next_step()
+            if time is not None:
+                delay_ns = int(time * 1_000_000_000)
+                self.execute_step.schedule(delay_ns, (method, args, msg))
+            return True
+        return False
+    =}
+
+    /** Triggers sendback sequence. */
+    method handle_sendback() {=
+        if self.is_busy.value:
+            logging.warning("Sendback requested but warehouse is BUSY")
+            return False
+        
+        self.is_busy.value = True
+        success = self.wh_ctrl.sendback()
+        
+        if success:
+            time, method, args, msg = self.wh_ctrl.get_next_step()
+            if time is not None:
+                delay_ns = int(time * 1_000_000_000)
+                self.execute_step.schedule(delay_ns, (method, args, msg))
+            return True
+        return False
+    =}
+
+    /** Executes sequential physical steps. */
     reaction(execute_step) -> execute_step {=
         method_name, args, msg = execute_step.value
-        
-        self.logger.info(f"[WarehouseUnit] Executing: {msg}")
+        logging.info(f"Executing physical step: {msg}")
+
         res = self.wh_ctrl.execute_step(method_name, args)
 
         if not res:
-            self.logger.error(f"[WarehouseUnit] Physical Step Failed: {msg}")
-            self.wh_ctrl.set_idle()
+            logging.error(f"Physical Step FAILED: {msg}")
+            self.is_busy.value = False
             return
 
-        # Fetch and schedule the next physical step
         time, next_method, next_args, next_msg = self.wh_ctrl.get_next_step()
 
         if time is not None:
             delay_ns = int(time * 1_000_000_000)
             execute_step.schedule(delay_ns, (next_method, next_args, next_msg))
         else:
-            self.logger.info("[WarehouseUnit] Sequence Complete.")
-            self.wh_ctrl.set_idle()
+            logging.info("Sequence Complete. Warehouse is now IDLE.")
+            self.pos_y.value = self.wh.pos_y
+            self.tray_at_bay.value = self.wh.tray_at_bay
+            self.is_busy.value = False
     =}
 }
