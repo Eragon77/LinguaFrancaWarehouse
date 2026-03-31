@@ -1,27 +1,42 @@
-# Lingua Franca
 src-gen/
 bin/
+*.lf-project-config
+.lf-project-config
 
-# Python
+
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
-env/
 venv/
+env/
+frost_env/
 .tox/
-.coverage
 .pytest_cache/
+.coverage
 
-# Logs
+.python-version
+poetry.lock
+
+.virtualenvs/
+
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+
 *.log
 crash.log
 logfile.log
 warehouse_unit.log
 
-# OS
-.DS_Storeconfig.yml
-frost_config.yml
-tox.ini
-include/
+
 config.yml
+frost_config.yml
+include/
+
+
+.DS_Store
+Thumbs.db

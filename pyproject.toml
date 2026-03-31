@@ -2,14 +2,15 @@
 name = "frost"
 version = "0.1.0"
 description = "Orchestratore Frost"
-authors = ["Luca <lquar@example.com>"]
+authors = ["Luca Quaresima <luca.quaresima@studenti.univr.it>"]
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.13"
+python = "^3.12"
 pyyaml = "^6.0.2"
 unitsnet-py = ">=0.1.154"
 egglog = ">=13.0.0"
+machine-data-model = {path = "../machine-data-model", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.10.0"

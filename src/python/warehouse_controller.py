@@ -1,164 +1,139 @@
 import logging
-from typing import List,Tuple
-
-Step=Tuple[float,str,tuple,str] # (time, function_name, args, message)
+from typing import Optional
+from warehouse_platform import Platform
+from slot import Slot
+from cfg_engine import get_next_action_from_egglog 
 
 class WarehouseController:
     def __init__(self, warehouse):
         self.wh = warehouse
-        self.current_move_sequence: List[Step]=[]
+        self.current_mission: str = "IDLE"  # Can be "IDLE", "FETCH", "DELIVER"
+        self.source_slot: Optional[Slot] = None
+        self.dest_slot: Optional[Slot] = None
 
-    # --- TIME CALCULATION HELPERS ---
-
-    def _compute_time(self,distance:float, speed:float, axis:str)->float:
-        if speed<=0:
-            logging.error(f"[TIME FAIL] Speed on axis {axis} is less than or equal to zero.")
-            return 0.0
-        return abs(distance)/speed
-
-    def _get_time_y(self, target_y: float) -> float:
-        platform = self.wh.platform
-        return self._compute_time(target_y-platform.curr_y, platform.speed_y, "Y")
-    
-    def _get_time_x(self, target_x: float) -> float:
-        platform = self.wh.platform
-        return self._compute_time(target_x - platform.curr_x, platform.extract_speed, "X")
-    
-    # -----------------------
-    # Sequence helpers
-    # -----------------------
-    
-    def _add_step(self,duration:float,func:str,args:tuple,msg:str):
-        """Adds a step to the move sequence"""
-        self.current_move_sequence.append((duration,func,args,msg))
-
-    def _move_x(self, x: float, phase: str):
-        t = self._get_time_x(x)
-        self._add_step(t, "update_x_position", (x,), f"{phase}: Moving X to {x}.")
-    
-    def _move_y(self, y: float, phase: str):
-        t = self._get_time_y(y)
-        self._add_step(t, "update_y_position", (y,), f"{phase}: Moving Y to {y}.")
-
-    def _build_sequence_internal(self, slot_from, slot_to) -> bool:
-        """Internal helper to build the PICKUP -> PLACE sequence."""
-        if slot_from.tray is None:
-            logging.error(f"Sequence Build Failed: Source slot {slot_from.position_id} is empty.")
-            return False
-            
-        self.current_move_sequence = []
-        platform=self.wh.platform
-
-        # ------------------------
-        # 1. PICKUP PHASE 
-        # ------------------------
-
-        self._move_y(slot_from.y, "PICKUP")
-        self._move_x(slot_from.x, "PICKUP")
-
-        self._add_step(0.0,"pick_up_from", (slot_from,), f"PICKUP: tray from {slot_from.position_id}.")
-
-        self._move_x(0.0,"PICKUP")
-
-        # -----------------
-        # 2. PLACE PHASE 
-        # ------------------
-        
-        self._move_y(slot_to.y, "PLACE")
-        self._move_x(slot_to.x, "PLACE")
-
-        self._add_step(0.0, "place_into", (slot_to,), f"PLACE: tray into {slot_to.position_id}.")
-
-        self._move_x(0.0,"PLACE")
-        return True
-    
     # ---------
-    # API
+    # API / COMMAND BUILDERS
     # ---------
     
     def build_enqueue_sequence(self, tray_id: str) -> bool:
-        """
-        Builds the sequence to move a specific tray from storage to the empty queue slot.
-        """
+        """Sets the target slots for an Enqueue operation and starts the FETCH mission."""
         slot_from = self.wh.find_slot_by_tray_id(tray_id)
         slot_to = self.wh.get_empty_queue_slot()
 
         if not slot_from:
-            logging.error(f"Enqueue failed: Tray ID {tray_id} not found in warehouse.")
+            logging.error(f"Enqueue failed: Tray ID {tray_id} not found.")
             return False
-        
-        # Ensure the found slot is not already the queue or bay
         if slot_from.position_id.startswith("queue_") or slot_from.position_id == "in_view":
-            logging.error(f"Enqueue failed: Tray ID {tray_id} is already in the queue or bay.")
+            logging.error(f"Enqueue failed: Tray ID {tray_id} is already in queue or bay.")
             return False
-            
         if not slot_to:
             logging.error("Enqueue failed: Queue slot is occupied.")
             return False
             
-        logging.info(f"Building ENQUEUE sequence: {slot_from.position_id} -> {slot_to.position_id}")
-        return self._build_sequence_internal(slot_from, slot_to)
+        logging.info(f"Starting ENQUEUE: {slot_from.position_id} -> {slot_to.position_id}")
+        self._start_mission(slot_from, slot_to)
+        return True
 
     def build_sendback_sequence(self) -> bool:
-        """
-        Builds the sequence to move the tray from the occupied bay (in_view_slot) back to empty storage.
-        """
-        # 1. Source: Must be the occupied Bay slot (in_view_slot)
+        """Sets the target slots for a Send Back operation and starts the FETCH mission."""
         slot_from = self.wh.get_occupied_bay_slot()
-        # 2. Destination: Must be an empty Storage slot
         slot_to = self.wh.find_empty_storage_slot()
 
         if not slot_from:
-            logging.error("Send Back failed: Bay (in_view_slot) is empty.")
+            logging.error("Send Back failed: Bay is empty.")
             return False
         if not slot_to:
-            logging.error("Send Back failed: Warehouse storage is full.")
+            logging.error("Send Back failed: Storage is full.")
             return False
 
-        logging.info(f"Building SEND_BACK sequence: {slot_from.position_id} -> {slot_to.position_id}")
-        return self._build_sequence_internal(slot_from, slot_to)
+        logging.info(f"Starting SEND_BACK: {slot_from.position_id} -> {slot_to.position_id}")
+        self._start_mission(slot_from, slot_to)
+        return True
 
     def build_extract_sequence(self) -> bool:
-        """
-        Builds the sequence to move the first tray from the occupied queue slot to the extraction bay (in_view_slot).
-        """
-        # 1. Source: Find the first occupied slot in the queue
+        """Sets the target slots for an Extract operation and starts the FETCH mission."""
         slot_from = self.wh.get_occupied_queue_slot()
-        
-        if not slot_from:
-            logging.error("Extract failed: Queue is currently empty.")
-            return False
-        
-        # 2. Destination: The extraction bay (in_view_slot)
         slot_to = self.wh.get_tray_bay_slot() 
 
+        if not slot_from:
+            logging.error("Extract failed: Queue is empty.")
+            return False
         if not slot_to:
-            logging.error("Extract failed: Extraction bay slot is invalid.")
+            logging.error("Extract failed: Bay slot invalid.")
             return False
             
-        logging.info(f"Building EXTRACT sequence: {slot_from.position_id} -> {slot_to.position_id} (to In-View Bay)")
-        
-        return self._build_sequence_internal(slot_from, slot_to)
+        logging.info(f"Starting EXTRACT: {slot_from.position_id} -> {slot_to.position_id}")
+        self._start_mission(slot_from, slot_to)
+        return True
+
+    def _start_mission(self, slot_from: Slot, slot_to: Slot):
+        """Internal helper to set mission targets."""
+        self.source_slot = slot_from
+        self.dest_slot = slot_to
+        self.current_mission = "FETCH"
+        self.set_busy()
 
     # ---------------------------------------------------------------------
     # EXECUTION INTERFACE
     # ---------------------------------------------------------------------
 
-    def get_next_step(self):
-        """ Returns (next_step_time, function, arguments, message) """
-        if not self.current_move_sequence:
-            return None, None, None, None
-        return self.current_move_sequence.pop(0)
-    
+    def tick(self) -> bool:
+        """
+        Called periodically by Lingua Franca.
+        Evaluates the current physical state, asks Egglog for the next action, and executes it.
+        """
+        if self.current_mission == "IDLE":
+            return False
+
+        platform = self.wh.platform
+        
+        # Determine targets
+        target_slot = self.source_slot if self.current_mission == "FETCH" else self.dest_slot
+        
+        # Query Egglog for the next action
+        func_name, args = get_next_action_from_egglog(
+            curr_y=platform.curr_y,
+            curr_x=platform.curr_x,
+            is_holding_tray=platform.is_holding_tray(),
+            is_busy=self.wh.is_busy,  # Not used for platform physical busy here, assuming platform handles its own async movement
+            is_target_empty=(target_slot.tray is None),
+            cmd_type=self.current_mission,
+            target_x=target_slot.x,
+            target_y=target_slot.y
+        )
+
+        # Execute the action if it's not a wait
+        if func_name != "wait":
+            self.execute_step(func_name, args)
+            
+            # Handle Phase Transitions
+            if func_name == "pick_up_from":
+                logging.info("Fetch complete. Switching to DELIVER phase.")
+                self.current_mission = "DELIVER"
+                
+            elif func_name == "place_into":
+                logging.info("Deliver complete. Mission finished.")
+                self.set_idle()
+                
+        return True
+
     def execute_step(self, function_name, args):
-        """ Executes the step requested by LF. """
+        """ Executes the physical step on the platform. """
         platform = self.wh.platform
         try:
+            # For pickup/place, we need to pass the actual slot object
+            if function_name == "pick_up_from":
+                return platform.pick_up_from(self.source_slot)
+            elif function_name == "place_into":
+                return platform.place_into(self.dest_slot)
+            
+            # For movements, pass the coordinates
             method = getattr(platform, function_name)
             return method(*args)
-        except (AttributeError,ValueError,ZeroDivisionError) as e:
-            error_type=type(e).__name__
-            logging.error(f"[EXECUTION FAIL] Function: {function_name}, Error Type: {error_type} - {e}")
+            
+        except (AttributeError, ValueError, ZeroDivisionError) as e:
+            error_type = type(e).__name__
+            logging.error(f"[EXECUTION FAIL] Function: {function_name}, Error: {error_type} - {e}")
             return False
 
     # ---------------------------------------------------------------------
@@ -168,11 +143,12 @@ class WarehouseController:
     def set_busy(self): self.wh.set_busy()
     
     def set_idle(self): 
-        self.current_move_sequence = []
+        self.current_mission = "IDLE"
+        self.source_slot = None
+        self.dest_slot = None
         self.wh.set_idle()
         
     def is_ready(self) -> bool: return self.wh.is_ready()
-
 
     #----------------------------------------
     # ICE FROST (?) methods.

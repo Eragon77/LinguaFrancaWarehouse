@@ -9,7 +9,8 @@ target Python {
         "python/tray.py",
         "python/slot.py",
         "python/warehouse.py",
-        "python/warehouse_controller.py"
+        "python/warehouse_controller.py",
+        "../cfg_engine.py"
     ],
     logging: error
 };
