@@ -141,39 +141,39 @@ files = [
 
 [[package]]
 name = "egglog"
-version = "13.0.1"
+version = "13.1.0"
 description = "e-graphs in Python built around the the egglog rust library"
 optional = false
 python-versions = ">=3.11"
 files = [
-    {file = "egglog-13.0.1-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:0f4c30db00759c3354865d67a252646a1fc0578a31cf3e3b00584aa93310ef10"},
-    {file = "egglog-13.0.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8573fb5658e005221888542526dca33cbdb1e85eb6f19ad8d45f856fda71055b"},
-    {file = "egglog-13.0.1-cp311-cp311-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:7b3acf27b286287d7b9783c86ae76ebbf783e89ba58e38bc7677a0d9295b9cca"},
-    {file = "egglog-13.0.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:114d66e0fe368f5671db88be68eaec18242afc850c86843422cd20b21cc0795a"},
-    {file = "egglog-13.0.1-cp311-cp311-win_amd64.whl", hash = "sha256:57f66494e1ed527a917d3abd48e414670474c797671e07d400eba3fe006a7db8"},
-    {file = "egglog-13.0.1-cp312-cp312-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:5b3e5124fe0d197cedaaf5831746e12758beda793166999f60c1fd5226ba9396"},
-    {file = "egglog-13.0.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cbc918d5c71e17199ffb5f60bc4a40564013bd15f442c4d2c941f8fe0cbe25a7"},
-    {file = "egglog-13.0.1-cp312-cp312-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:2607ac68b4f15071c6f1ab6da20341d2e79314ecc95493520463a7ed3fdff277"},
-    {file = "egglog-13.0.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:514b2e6fa0fdf1759581fb62a85aeab8d55a39677006f591ea2cce59ac1cb9be"},
-    {file = "egglog-13.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:82e4cb993ca86bdb38595c68b0af58a3be0788466021ce6383788edf04cdda9b"},
-    {file = "egglog-13.0.1-cp313-cp313-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:3e7e83e9ee603d4fd746c30d1d36acb7229ae9fa112fb43211f780a93b4959f8"},
-    {file = "egglog-13.0.1-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ea948b722f3e8cc35b7d61259a7bfa3f863da9b68d1c4859945f2577c2182a3e"},
-    {file = "egglog-13.0.1-cp313-cp313-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:ba19d495f0aab02e1e146d9dbd07c2bf6beb676e52d0cd62b482be595168a4eb"},
-    {file = "egglog-13.0.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5a7da9b5e7a5013e86f0a726d03e141091875f2866eb218943192853f5af0da8"},
-    {file = "egglog-13.0.1-cp313-cp313-win_amd64.whl", hash = "sha256:a0b19a4981b2af007362676e7b0a7c075b31ef60e7aa4baf45e98185c5c57fd1"},
-    {file = "egglog-13.0.1-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:41db1ba71e699d0b265746de3233c9cc73953d9a326f4f1a466f2687011dbc45"},
-    {file = "egglog-13.0.1-cp313-cp313t-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:e38dbfa5d78164e1f59d4234ecb315105542bd067cf46885d6140cd62e9dc145"},
-    {file = "egglog-13.0.1-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:d694a1e303331849afc80214106b4698d1ab9ebfa98305bfe7fa52e3036f5a45"},
-    {file = "egglog-13.0.1-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c6bc20b2c2f6a51cac6e9d2f671f97198b9246a6f876397de2de996da1092bb8"},
-    {file = "egglog-13.0.1-cp314-cp314-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:ccce0cc8f0c8be2cea211986b7e2b46e033d66b26164e4a9f2585fca71fa3fc4"},
-    {file = "egglog-13.0.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ca9a310cd5dc83d47580fdb3135588771d300c63b9bd8669c02aff991c1796e2"},
-    {file = "egglog-13.0.1-cp314-cp314-win_amd64.whl", hash = "sha256:ad6b9d728d7e5396f0913be6b5ac80dbd52be285eb5bb4532cca6aa992f69ce7"},
-    {file = "egglog-13.0.1-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:945f6705b15fd365a5d47952bff8085741b3a6d46d27ecdfc25c4adf5370f20e"},
-    {file = "egglog-13.0.1-cp314-cp314t-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:be7cb9e92de7a092e2c2c4c9b97aafb91749fbc711ccf78985a71b2c55e846b4"},
-    {file = "egglog-13.0.1-pp311-pypy311_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a300399c9804906739bd16402d85674eac5a8732320276bdd9cced68644a30c6"},
-    {file = "egglog-13.0.1-pp311-pypy311_pp73-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:79dfabc005bcc42215009368639e6644c429e1ef37a359707b86c79e1386957d"},
-    {file = "egglog-13.0.1-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:622e80cfe18b6064148ad00d6856c57506194b234e103ac0293272725f5e0e22"},
-    {file = "egglog-13.0.1.tar.gz", hash = "sha256:dc4ca99ebc4460faac9f094afee2ac718aafff0a3c5b82283d670fb44263b231"},
+    {file = "egglog-13.1.0-cp311-cp311-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:fe4317a94b2a299d49ca29f00cb1084253eed2a1b2aa8b8e1098602dcb41e314"},
+    {file = "egglog-13.1.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:34bd74ee33974cf8e1367d50f6ec7bc002a828ee1b588bb0e951ee123ce09f38"},
+    {file = "egglog-13.1.0-cp311-cp311-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:ecab773e942d47992156f860cc72655f50ec4887f15e60b44b062c623600f6b1"},
+    {file = "egglog-13.1.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e08e30396e1ed026adb4eb67cbf98fe6a3dd66d818617de99a91f62372645269"},
+    {file = "egglog-13.1.0-cp311-cp311-win_amd64.whl", hash = "sha256:58ea467ef760910864b3cadf14b7d49bb4057c3f47d93d7d04575a30f238d877"},
+    {file = "egglog-13.1.0-cp312-cp312-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:a19c1509ab0be423c91a539dcc4e2c8c7835126cb79db9ad99341a9f3b436206"},
+    {file = "egglog-13.1.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b24fdb78dd3ee97f4dec59f208c1d29703af46a742fdf7ec879c486796625798"},
+    {file = "egglog-13.1.0-cp312-cp312-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:7e4b40e027f9401fa7ce2dc6ff35f8566e625914c4489fce5575acbe63bb43a6"},
+    {file = "egglog-13.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ad0c8d2a9c162ee0080ef6898026176d85767b54f8e57999d0595c556b5ce7a5"},
+    {file = "egglog-13.1.0-cp312-cp312-win_amd64.whl", hash = "sha256:23b44c4b73a6d3a7546d223d7918c557f52363947cd24805f60b078f2b450b82"},
+    {file = "egglog-13.1.0-cp313-cp313-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:e9c7a7b1d6aaa101490217de13d5c6411d78b84f3b1c95bfe52020c8fe4f9fd4"},
+    {file = "egglog-13.1.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cb132cd3f0d132fc118198416e25076be943943abc91ad09acb8f21ae5f84f9a"},
+    {file = "egglog-13.1.0-cp313-cp313-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:af8a79a0f65b55fe4dbc7e432ed14b865cf9d07046f991cff3bce0846b5b84df"},
+    {file = "egglog-13.1.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d4b568f48753bf612bb1b0c487546f94752a06a0da438bc117c3d5c0f4f13a6b"},
+    {file = "egglog-13.1.0-cp313-cp313-win_amd64.whl", hash = "sha256:8fd17314f900dcece94f948bd662dff5aef42a78b86ff1ce83141594c346109d"},
+    {file = "egglog-13.1.0-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cb334ef09628984138e937c31c20122888c405aca518983691eec0eb1abc4e12"},
+    {file = "egglog-13.1.0-cp313-cp313t-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:fd64db972d23db15a42c4b77a34ad67c7d96bedebff0cc55248eb44485291d9f"},
+    {file = "egglog-13.1.0-cp314-cp314-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:b2fc94360844667bda63d76240e79adc1a5efcdb0c5e0c3eaec573e81be79afb"},
+    {file = "egglog-13.1.0-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:19dba7312f74905ef04476ac20b1bb4a25b90c386c577be864e9dbb3f37bbea7"},
+    {file = "egglog-13.1.0-cp314-cp314-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:0ba8cd32eb73d1502a92af09fcc965d016ab60553ba0d65abb22766a381ef927"},
+    {file = "egglog-13.1.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6249dfcc6d501d09d7dea2cbf9db80a4a3d2ef6a74081c9d5ef00efa76afc418"},
+    {file = "egglog-13.1.0-cp314-cp314-win_amd64.whl", hash = "sha256:8433074c82f69157f4564f50755821a770fe43a019c180956261f4a7bd7abb8c"},
+    {file = "egglog-13.1.0-cp314-cp314t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e057c94c13c8caefe059bdf6fa4aba47f34ac9575b93223280110db190e09c22"},
+    {file = "egglog-13.1.0-cp314-cp314t-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:c157c46a442fb3db9fed813ae1a5b9df36664e669fbe08083cdcd552365bc7db"},
+    {file = "egglog-13.1.0-pp311-pypy311_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b0756de533cd4b19f5545b017ce9e77dde47e2c3a949fe549011ff96c098f68a"},
+    {file = "egglog-13.1.0-pp311-pypy311_pp73-manylinux_2_17_ppc64.manylinux2014_ppc64.whl", hash = "sha256:0aa6e25b20ee127a1030f2a0be80e3913c2e3239bf69fd674edac9d112307533"},
+    {file = "egglog-13.1.0-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:992aa9291e801ef69de7eab0bc2a023ffc84f732346a5903341153365603ef1e"},
+    {file = "egglog-13.1.0.tar.gz", hash = "sha256:a049f43a46636e95714f3eb958de430e806968423e6ed335a29bba413be09fc3"},
 ]
 
 [package.dependencies]
@@ -181,13 +181,14 @@ anywidget = "*"
 black = "*"
 cloudpickle = ">=3"
 graphviz = "*"
+opentelemetry-api = "*"
 typing-extensions = "*"
 
 [package.extras]
 array = ["array-api-compat", "llvmlite (>=0.42.0)", "numba (>=0.59.1)", "numpy (>2)", "scikit-learn"]
 dev = ["anywidget[dev]", "egglog[docs,test]", "ipykernel", "jupyterlab", "mypy", "pre-commit", "ruff"]
 docs = ["ablog", "anywidget", "egglog[array]", "jupytext", "line-profiler", "matplotlib", "myst-nb", "nbconvert", "pydata-sphinx-theme", "seaborn", "sphinx-autodoc-typehints", "sphinx-gallery", "sphinxcontrib-mermaid"]
-test = ["egglog[array]", "mypy", "pytest", "pytest-benchmark", "pytest-codspeed", "pytest-xdist", "syrupy (>=5)"]
+test = ["egglog[array]", "mypy", "opentelemetry-exporter-otlp-proto-http", "opentelemetry-sdk", "pytest", "pytest-benchmark", "pytest-codspeed", "pytest-xdist", "syrupy (>=5)"]
 
 [[package]]
 name = "executing"
@@ -220,14 +221,37 @@ docs = ["sphinx (>=5,<7)", "sphinx-autodoc-typehints", "sphinx-rtd-theme (>=0.2.
 test = ["coverage", "pytest (>=7,<8.1)", "pytest-cov", "pytest-mock (>=3)"]
 
 [[package]]
+name = "importlib-metadata"
+version = "8.7.1"
+description = "Read metadata from Python packages"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "importlib_metadata-8.7.1-py3-none-any.whl", hash = "sha256:5a1f80bf1daa489495071efbb095d75a634cf28a8bc299581244063b53176151"},
+    {file = "importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb"},
+]
+
+[package.dependencies]
+zipp = ">=3.20"
+
+[package.extras]
+check = ["pytest-checkdocs (>=2.4)", "pytest-ruff (>=0.2.1)"]
+cover = ["pytest-cov"]
+doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+enabler = ["pytest-enabler (>=3.4)"]
+perf = ["ipython"]
+test = ["flufl.flake8", "jaraco.test (>=5.4)", "packaging", "pyfakefs", "pytest (>=6,!=8.1.*)", "pytest-perf (>=0.9.2)"]
+type = ["mypy (<1.19)", "pytest-mypy (>=1.0.1)"]
+
+[[package]]
 name = "ipython"
-version = "9.11.0"
+version = "9.12.0"
 description = "IPython: Productive Interactive Computing"
 optional = false
 python-versions = ">=3.12"
 files = [
-    {file = "ipython-9.11.0-py3-none-any.whl", hash = "sha256:6922d5bcf944c6e525a76a0a304451b60a2b6f875e86656d8bc2dfda5d710e19"},
-    {file = "ipython-9.11.0.tar.gz", hash = "sha256:2a94bc4406b22ecc7e4cb95b98450f3ea493a76bec8896cda11b78d7752a6667"},
+    {file = "ipython-9.12.0-py3-none-any.whl", hash = "sha256:0f2701e8ee86e117e37f50563205d36feaa259d2e08d4a6bc6b6d74b18ce128d"},
+    {file = "ipython-9.12.0.tar.gz", hash = "sha256:01daa83f504b693ba523b5a407246cabde4eb4513285a3c6acaff11a66735ee4"},
 ]
 
 [package.dependencies]
@@ -316,6 +340,23 @@ files = [
 ]
 
 [[package]]
+name = "machine-data-model"
+version = "1.0.0"
+description = "Machine data model for the Glacier platform."
+optional = false
+python-versions = "^3.11"
+files = []
+develop = true
+
+[package.dependencies]
+pyyaml = "^6.0.2"
+unitsnet-py = "^0.1.135"
+
+[package.source]
+type = "directory"
+url = "../machine-data-model"
+
+[[package]]
 name = "matplotlib-inline"
 version = "0.2.1"
 description = "Inline Matplotlib backend for Jupyter"
@@ -342,6 +383,21 @@ files = [
     {file = "mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505"},
     {file = "mypy_extensions-1.1.0.tar.gz", hash = "sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558"},
 ]
+
+[[package]]
+name = "opentelemetry-api"
+version = "1.40.0"
+description = "OpenTelemetry Python API"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "opentelemetry_api-1.40.0-py3-none-any.whl", hash = "sha256:82dd69331ae74b06f6a874704be0cfaa49a1650e1537d4a813b86ecef7d0ecf9"},
+    {file = "opentelemetry_api-1.40.0.tar.gz", hash = "sha256:159be641c0b04d11e9ecd576906462773eb97ae1b657730f0ecf64d32071569f"},
+]
+
+[package.dependencies]
+importlib-metadata = ">=6.0,<8.8.0"
+typing-extensions = ">=4.5.0"
 
 [[package]]
 name = "packaging"
@@ -486,13 +542,13 @@ tests = ["pytest"]
 
 [[package]]
 name = "pygments"
-version = "2.19.2"
+version = "2.20.0"
 description = "Pygments is a syntax highlighting package written in Python."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b"},
-    {file = "pygments-2.19.2.tar.gz", hash = "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887"},
+    {file = "pygments-2.20.0-py3-none-any.whl", hash = "sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"},
+    {file = "pygments-2.20.0.tar.gz", hash = "sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f"},
 ]
 
 [package.extras]
@@ -627,12 +683,12 @@ files = [
 
 [[package]]
 name = "unitsnet-py"
-version = "1.0.5"
+version = "0.1.154"
 description = "A better way to hold unit variables and easily convert to the destination unit"
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "unitsnet_py-1.0.5.tar.gz", hash = "sha256:0517f14c1635f85f9928440e47d1b4744fd9fdf308d2597ecd5a41788c4e0b5c"},
+    {file = "unitsnet-py-0.1.154.tar.gz", hash = "sha256:2407e1017512eea1bbd51d60db532d3afd7cfcf771919b5854bdffbd4110c30d"},
 ]
 
 [[package]]
@@ -657,7 +713,26 @@ files = [
     {file = "widgetsnbextension-4.0.15.tar.gz", hash = "sha256:de8610639996f1567952d763a5a41af8af37f2575a41f9852a38f947eb82a3b9"},
 ]
 
+[[package]]
+name = "zipp"
+version = "3.23.0"
+description = "Backport of pathlib-compatible object wrapper for zip files"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "zipp-3.23.0-py3-none-any.whl", hash = "sha256:071652d6115ed432f5ce1d34c336c0adfd6a884660d1e9712a256d3d3bd4b14e"},
+    {file = "zipp-3.23.0.tar.gz", hash = "sha256:a07157588a12518c9d4034df3fbbee09c814741a33ff63c05fa29d26a2404166"},
+]
+
+[package.extras]
+check = ["pytest-checkdocs (>=2.4)", "pytest-ruff (>=0.2.1)"]
+cover = ["pytest-cov"]
+doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+enabler = ["pytest-enabler (>=2.2)"]
+test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more_itertools", "pytest (>=6,!=8.1.*)", "pytest-ignore-flaky"]
+type = ["pytest-mypy"]
+
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.12,<3.13"
-content-hash = "541fb0547ffea193f4c35bcd015b5a03299daf304fe4342bcc4614fe229a4e1b"
+python-versions = "^3.12"
+content-hash = "d1647a706f1b238b6ff364517ff3b097992fe414547e7bfb257bbfd8926f8c20"

@@ -4,7 +4,8 @@ target Python {
         "python/tray.py",
         "python/slot.py",
         "python/warehouse.py",
-        "python/warehouse_controller.py"
+        "python/warehouse_controller.py",
+        "../cfg_engine.py" 
     ]
 };
 
@@ -30,7 +31,7 @@ preamble {=
 
 /**
  * Reactor representing a Warehouse unit.
- * Manages physical state transitions and exposes control methods.
+ * Uses Egglog for reactive control.
  */
 reactor WarehouseUnit extends FrostMachine {
 
@@ -45,7 +46,8 @@ reactor WarehouseUnit extends FrostMachine {
     state wh = {= None =}
     state wh_ctrl = {= None =}
     
-    logical action execute_step
+    // Ticks every 50ms to evaluate the physical state
+    timer control_loop(0, 50 msec)
 
     /** Initial setup and data model binding. */
     reaction(startup) {=
@@ -62,67 +64,45 @@ reactor WarehouseUnit extends FrostMachine {
         self.action_extract.callback = self.handle_extract
         self.action_sendback.callback = self.handle_sendback
 
-        logging.info("Warehouse Unit Ready. Data Model bound.")
-        print("Initialized Warehouse with sample trays.")
+        logging.info("Warehouse Unit Ready. Symbolic Engine attached.")
+        print("Initialized Reactive Warehouse.")
     =}
 
     /** Triggers extraction sequence. */
     method handle_extract() {=
-        if self.is_busy.value:
-            logging.warning("Extract requested but warehouse is BUSY")
+        if self.wh_ctrl.current_mission != "IDLE":
+            logging.warning("Extract requested but warehouse is already on a mission.")
             return False
         
         self.is_busy.value = True
-        success = self.wh_ctrl.extract()
-        
-        if success:
-            time, method, args, msg = self.wh_ctrl.get_next_step()
-            if time is not None:
-                delay_ns = int(time * 1_000_000_000)
-                self.execute_step.schedule(delay_ns, (method, args, msg))
-            return True
-        return False
+        return self.wh_ctrl.extract()
     =}
 
     /** Triggers sendback sequence. */
     method handle_sendback() {=
-        if self.is_busy.value:
-            logging.warning("Sendback requested but warehouse is BUSY")
+        if self.wh_ctrl.current_mission != "IDLE":
+            logging.warning("Sendback requested but warehouse is already on a mission.")
             return False
         
         self.is_busy.value = True
-        success = self.wh_ctrl.sendback()
-        
-        if success:
-            time, method, args, msg = self.wh_ctrl.get_next_step()
-            if time is not None:
-                delay_ns = int(time * 1_000_000_000)
-                self.execute_step.schedule(delay_ns, (method, args, msg))
-            return True
-        return False
+        return self.wh_ctrl.sendback()
     =}
 
-    /** Executes sequential physical steps. */
-    reaction(execute_step) -> execute_step {=
-        method_name, args, msg = execute_step.value
-        logging.info(f"Executing physical step: {msg}")
-
-        res = self.wh_ctrl.execute_step(method_name, args)
-
-        if not res:
-            logging.error(f"Physical Step FAILED: {msg}")
-            self.is_busy.value = False
-            return
-
-        time, next_method, next_args, next_msg = self.wh_ctrl.get_next_step()
-
-        if time is not None:
-            delay_ns = int(time * 1_000_000_000)
-            execute_step.schedule(delay_ns, (next_method, next_args, next_msg))
-        else:
-            logging.info("Sequence Complete. Warehouse is now IDLE.")
-            self.pos_y.value = self.wh.pos_y
-            self.tray_at_bay.value = self.wh.tray_at_bay
-            self.is_busy.value = False
+    /** THE BRAIN BRIDGE: Evaluates logic at every tick */
+    reaction(control_loop) {=
+        # If we are on a mission, let Egglog decide the next move
+        if self.wh_ctrl.current_mission != "IDLE":
+            
+            # The tick() function asks Egglog and executes the physical step
+            is_active = self.wh_ctrl.tick()
+            
+            # Update Data Model 
+            self.pos_y.value = self.wh.platform.curr_y
+            self.tray_at_bay.value = self.wh.tray_in_bay
+            
+            # If the engine finished the mission, update the busy status
+            if not is_active or self.wh_ctrl.current_mission == "IDLE":
+                logging.info("Mission Accomplished. Warehouse is IDLE.")
+                self.is_busy.value = False
     =}
 }
