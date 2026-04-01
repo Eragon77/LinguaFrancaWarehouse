@@ -16,8 +16,6 @@ frost_env/
 .coverage
 
 .python-version
-poetry.lock
-
 .virtualenvs/
 
 
