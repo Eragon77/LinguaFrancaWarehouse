@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from warehouse_platform import Platform
 from slot import Slot
-from cfg_engine import get_next_action_from_egglog 
+from cfg_engine import get_next_action_from_egglog
 
 class WarehouseController:
     def __init__(self, warehouse):

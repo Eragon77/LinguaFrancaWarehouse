@@ -5,7 +5,7 @@ target Python {
         "python/slot.py",
         "python/warehouse.py",
         "python/warehouse_controller.py",
-        "../cfg_engine.py" 
+        "python/cfg_engine.py" 
     ]
 };
 
