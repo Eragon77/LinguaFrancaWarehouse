@@ -95,7 +95,7 @@ class WarehouseController:
             curr_y=platform.curr_y,
             curr_x=platform.curr_x,
             is_holding_tray=platform.is_holding_tray(),
-            is_busy=self.wh.is_busy,  # Not used for platform physical busy here, assuming platform handles its own async movement
+            is_busy=False,
             is_target_empty=(target_slot.tray is None),
             cmd_type=self.current_mission,
             target_x=target_slot.x,
