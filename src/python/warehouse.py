@@ -62,7 +62,10 @@ class Warehouse:
             self.get_slot_by_id("storage_L_10").add_tray(tray4)
 
             tray5 = Tray(weight=3.1)
-            self.get_slot_by_id("storage_R_15").add_tray(tray5) 
+            self.get_slot_by_id("storage_R_15").add_tray(tray5)
+
+            tray6 = Tray(weight=2.0)
+            self.get_slot_by_id("queue_0").add_tray(tray6)
             
             print("Initialized Warehouse with sample trays.")
         
