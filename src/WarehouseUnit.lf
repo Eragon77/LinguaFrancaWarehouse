@@ -14,19 +14,11 @@ import FrostMachine from "../frost/src/lib/FrostMachine.lf"
 preamble {=
     import sys
     import os
-    import logging
     
     sys.path.append(os.path.join(os.path.dirname(__file__), "python"))
     
     from warehouse import Warehouse
     from warehouse_controller import WarehouseController
-
-    logging.basicConfig(
-        level=logging.INFO, 
-        format="%(asctime)s - [WAREHOUSE] %(message)s",
-        filename="warehouse_unit.log", 
-        filemode="w"             
-    )
 =}
 
 /**
@@ -35,7 +27,6 @@ preamble {=
  */
 reactor WarehouseUnit extends FrostMachine {
 
-    state current_state = {= None =}
     state pos_y = {= None =}
     state tray_at_bay = {= None =}
     state is_busy = {= None =}
@@ -46,11 +37,18 @@ reactor WarehouseUnit extends FrostMachine {
     state wh = {= None =}
     state wh_ctrl = {= None =}
     
-    // Ticks every 50ms to evaluate the physical state
     timer control_loop(0, 50 msec)
 
     /** Initial setup and data model binding. */
-    reaction(startup) {=
+   reaction(startup) {=
+    try:
+        import logging
+        self.logger.setLevel(logging.INFO)
+        self.logger.propagate=False
+        fh = logging.FileHandler("warehouse_unit.log", mode="w")
+        fh.setFormatter(logging.Formatter("%(asctime)s - [WAREHOUSE] %(message)s"))
+        self.logger.addHandler(fh)
+
         self.pos_y = self.data_model.get_node("Warehouse/Status/pos_y")
         self.tray_at_bay = self.data_model.get_node("Warehouse/Status/tray_at_bay")
         self.is_busy = self.data_model.get_node("Warehouse/Status/Busy")
@@ -64,45 +62,53 @@ reactor WarehouseUnit extends FrostMachine {
         self.action_extract.callback = self.handle_extract
         self.action_sendback.callback = self.handle_sendback
 
-        logging.info("Warehouse Unit Ready. Symbolic Engine attached.")
-        print("Initialized Reactive Warehouse.")
-    =}
+        self.logger.info("Warehouse Unit Ready. Symbolic Engine attached.")
+    except Exception as e:
+        self.logger.exception(f"CRASH in startup: {e}")
+=}
 
     /** Triggers extraction sequence. */
     method handle_extract() {=
         if self.wh_ctrl.current_mission != "IDLE":
-            logging.warning("Extract requested but warehouse is already on a mission.")
+            self.logger.warning("Extract requested but warehouse is already on a mission.")
             return False
         
         self.is_busy.value = True
-        return self.wh_ctrl.extract()
+        result = self.wh_ctrl.extract()
+        self.logger.info(f"extract() returned {result}, mission is now: {self.wh_ctrl.current_mission}")
+        return result
     =}
 
     /** Triggers sendback sequence. */
     method handle_sendback() {=
         if self.wh_ctrl.current_mission != "IDLE":
-            logging.warning("Sendback requested but warehouse is already on a mission.")
+            self.logger.warning("Sendback requested but warehouse is already on a mission.")
             return False
         
         self.is_busy.value = True
-        return self.wh_ctrl.sendback()
+        result = self.wh_ctrl.sendback()
+        self.logger.info(f"sendback() returned {result}, mission is now: {self.wh_ctrl.current_mission}")
+        return result
     =}
 
     /** THE BRAIN BRIDGE: Evaluates logic at every tick */
     reaction(control_loop) {=
-        # If we are on a mission, let Egglog decide the next move
-        if self.wh_ctrl.current_mission != "IDLE":
-            
-            # The tick() function asks Egglog and executes the physical step
-            is_active = self.wh_ctrl.tick()
-            
-            # Update Data Model 
-            self.pos_y.value = self.wh.platform.curr_y
-            self.tray_at_bay.value = self.wh.tray_in_bay
-            
-            # If the engine finished the mission, update the busy status
-            if not is_active or self.wh_ctrl.current_mission == "IDLE":
-                logging.info("Mission Accomplished. Warehouse is IDLE.")
-                self.is_busy.value = False
+        try:
+            if self.wh_ctrl.current_mission != "IDLE":
+                is_active = self.wh_ctrl.tick()
+                self.pos_y.value = self.wh.platform.curr_y
+                self.tray_at_bay.value = self.wh.tray_in_bay
+                if not is_active or self.wh_ctrl.current_mission == "IDLE":
+                    self.logger.info("Mission Accomplished. Warehouse is IDLE.")
+                    self.is_busy.value = False
+        except Exception as e:
+            self.logger.exception(f"CRASH in control_loop: {e}")
+    =}
+
+    timer test_trigger(100 msec)
+
+    reaction(test_trigger) {=
+        self.logger.info("TEST AUTOMATICO: Richiesta di EXTRACT")
+        self.handle_extract()
     =}
 }
