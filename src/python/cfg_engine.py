@@ -1,4 +1,3 @@
-# mypy: disable-error-code="empty-body"
 from __future__ import annotations
 from egglog import *
 
@@ -168,7 +167,6 @@ def get_next_action_from_egglog(
         cmd_expr
     ).get_action()
 
-    # Fresh e-graph per query to avoid cross-call interference
     egraph = EGraph()
     egraph.register(*WAREHOUSE_RULES)
     egraph.let("query", state_query)
