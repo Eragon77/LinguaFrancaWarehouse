@@ -1,0 +1,29 @@
+{
+  "jobs": [
+    {
+      "id": "Job_001",
+      "name": "Sequenza_Estrazione_Deposito",
+      "tasks": [
+        {
+          "id": "T1",
+          "name": "SendBack",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20
+        },
+        {
+          "id": "T2",
+          "name": "SendBack",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "dependencies": ["T1"]
+        }
+      ]
+    }
+  ],
+  "machines": [
+    {
+      "id": "warehouseunit",
+      "name": "warehouseunit"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 target Python {
-    timeout: 5 sec,
-    fast: True,
+    timeout: 30 sec,
+    fast: False,
     files: [
         "../frost/src/python_lib/frost.py",
         "../frost/src/python_lib/l_formatter.py",
@@ -12,45 +12,39 @@ target Python {
         "python/warehouse_controller.py",
         "python/cfg_engine.py"
     ],
-    logging: error
+    logging: info,
+    single-threaded: true,
 };
 
 import FrostBus from "../frost/src/lib/FrostBus.lf"
 import WarehouseUnit from "WarehouseUnit.lf"
+import Scheduler from "Scheduler.lf"
 
 preamble {=
-    import os
-    import logging
     import uuid
+    import os
+    import yaml
     from frost import *
 
+    from frost_planner.generator.instance_generator import load_instance_from_json
+    from frost_planner.solver.genetic_solver import GeneticAlgorithmSolver
+    from frost_planner.executor.static_executor import StaticExecutor
+    from frost_planner.solver.dummy_solver import DummySolver
+    from frost_planner.executor.dynamic_executor import DynamicExecutor
+    from frost_planner.core.base import TaskStatus, Task, Job, SchedulingInstance, Machine
+
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-    WH_PATH = os.path.join(BASE_DIR, "models", "warehouse.yml")
-    BUS_PATH = os.path.join(BASE_DIR, "models", "frost_bus.yml")
-    
-    FROST_CONFIG = {
-        "reactors": {
-            "warehouse": {
-                "parameters": {"data_model_path": WH_PATH}
-            },
-            "frost_bus": {
-                "parameters": {"data_model_path": BUS_PATH}
-            },
-            "unnamed_reactor": {
-                "parameters": {"data_model_path": WH_PATH}
-            }
-        }
-    }
+    CONFIG_PATH = os.path.join(BASE_DIR, "frost_config.yml")
+
+    with open(CONFIG_PATH, "r") as file:
+        FROST_CONFIG = yaml.safe_load(file)
 =}
 
 main reactor FactoryMain {
-    
-    bus = new FrostBus(name="frost_bus", width=1)
-    
-    warehouse = new WarehouseUnit(
-        _data_model_path="models/warehouse.yml"
-    )
+    bus = new FrostBus(name="frost_bus", width=2)
+    warehouse = new WarehouseUnit(name="warehouseunit", _update_step= 1msec)
+    scheduler = new Scheduler(name="scheduler")
 
-    warehouse.channel_out -> bus.channel_in
-    bus.channel_out -> warehouse.channel_in after 10 msec
+    warehouse.channel_out, scheduler.channel_out -> bus.channel_in
+    bus.channel_out -> warehouse.channel_in, scheduler.channel_in after 10 msec
 }
