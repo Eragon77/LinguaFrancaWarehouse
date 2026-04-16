@@ -16,7 +16,7 @@ root:
           method: "${remote_method}"
           remote_id: "${remote_machine}"
         - !!WaitRemoteEventNode
-          variable: "/Machine/Busy"
+          variable: "/Machine/Status/Busy"
           remote_id: "${remote_machine}"
           rhs: false
           operator: "=="

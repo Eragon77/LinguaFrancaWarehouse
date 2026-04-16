@@ -1,4 +1,4 @@
-name: "Warehouse"
+name: "warehouseunit"
 machine_category: "unknown"
 machine_type: "unknown"
 machine_model: "unknown"
@@ -6,9 +6,22 @@ description: "Data model for automated vertical warehouse"
 
 root:
   !!FolderNode
-  name: "Warehouse"
+  name: "Machine" 
   description: "Root of the warehouse"
   children:
+    - !!AsyncMethodNode
+      name: "ExtractTray"
+      description: "extract tray"
+      returns:
+        - !!BooleanVariableNode
+            name: "done"
+    - !!AsyncMethodNode
+      name: "SendBack"
+      description: "sendback tray"
+      returns:
+        - !!BooleanVariableNode
+            name: "done"
+
     - !!FolderNode
       name: "Status"
       children:
@@ -28,13 +41,3 @@ root:
         - !!NumericalVariableNode
           name: "target_y"
           initial_value: 0
-
-    - !!FolderNode
-      name: "Actions"
-      children:
-        - !!AsyncMethodNode
-          name: "extract"
-          description: "extract tray"
-        - !!AsyncMethodNode
-          name: "sendback"
-          description: "sendback tray"
