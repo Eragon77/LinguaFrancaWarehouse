@@ -14,6 +14,7 @@ import FrostMachine from "../frost/src/lib/FrostMachine.lf"
 preamble {=
     import sys
     import os
+    import uuid
     
     sys.path.append(os.path.join(os.path.dirname(__file__), "python"))
     
@@ -21,94 +22,150 @@ preamble {=
     from warehouse_controller import WarehouseController
 =}
 
-/**
- * Reactor representing a Warehouse unit.
- * Uses Egglog for reactive control.
- */
 reactor WarehouseUnit extends FrostMachine {
-
     state pos_y = {= None =}
     state tray_at_bay = {= None =}
     state is_busy = {= None =}
-    
-    state action_extract = {= None =}
-    state action_sendback = {= None =}
-
     state wh = {= None =}
     state wh_ctrl = {= None =}
+    state pending_tasks = {= {} =}
     
     timer control_loop(0, 50 msec)
 
-    /** Initial setup and data model binding. */
-   reaction(startup) {=
-    try:
-        import logging
-        self.logger.setLevel(logging.INFO)
-        self.logger.propagate=False
-        fh = logging.FileHandler("warehouse_unit.log", mode="w")
-        fh.setFormatter(logging.Formatter("%(asctime)s - [WAREHOUSE] %(message)s"))
-        self.logger.addHandler(fh)
-
-        self.pos_y = self.data_model.get_node("Warehouse/Status/pos_y")
-        self.tray_at_bay = self.data_model.get_node("Warehouse/Status/tray_at_bay")
-        self.is_busy = self.data_model.get_node("Warehouse/Status/Busy")
-        
-        self.action_extract = self.data_model.get_node("Warehouse/Actions/extract")
-        self.action_sendback = self.data_model.get_node("Warehouse/Actions/sendback")
-
-        self.wh = Warehouse()
-        self.wh_ctrl = WarehouseController(self.wh)
-        
-        self.action_extract.callback = self.handle_extract
-        self.action_sendback.callback = self.handle_sendback
-
-        self.logger.info("Warehouse Unit Ready. Symbolic Engine attached.")
-    except Exception as e:
-        self.logger.exception(f"CRASH in startup: {e}")
-=}
-
-    /** Triggers extraction sequence. */
-    method handle_extract() {=
-        if self.wh_ctrl.current_mission != "IDLE":
-            self.logger.warning("Extract requested but warehouse is already on a mission.")
-            return False
-        
-        self.is_busy.value = True
-        result = self.wh_ctrl.extract()
-        self.logger.info(f"extract() returned {result}, mission is now: {self.wh_ctrl.current_mission}")
-        return result
-    =}
-
-    /** Triggers sendback sequence. */
-    method handle_sendback() {=
-        if self.wh_ctrl.current_mission != "IDLE":
-            self.logger.warning("Sendback requested but warehouse is already on a mission.")
-            return False
-        
-        self.is_busy.value = True
-        result = self.wh_ctrl.sendback()
-        self.logger.info(f"sendback() returned {result}, mission is now: {self.wh_ctrl.current_mission}")
-        return result
-    =}
-
-    /** THE BRAIN BRIDGE: Evaluates logic at every tick */
-    reaction(control_loop) {=
+    reaction(startup) {=
+        """ Initialize hardware and data nodes """
         try:
-            if self.wh_ctrl.current_mission != "IDLE":
-                is_active = self.wh_ctrl.tick()
-                self.pos_y.value = self.wh.platform.curr_y
-                self.tray_at_bay.value = self.wh.tray_in_bay
-                if not is_active or self.wh_ctrl.current_mission == "IDLE":
-                    self.logger.info("Mission Accomplished. Warehouse is IDLE.")
-                    self.is_busy.value = False
+            self.pos_y = self.data_model.get_node("Machine/Status/pos_y")
+            self.tray_at_bay = self.data_model.get_node("Machine/Status/tray_at_bay")
+            self.is_busy = self.data_model.get_node("Machine/Status/Busy")
+            
+            self.wh = Warehouse()
+            self.wh_ctrl = WarehouseController(self.wh)
+        
+            self.is_busy.value = False
+            self.wh_ctrl.set_idle()
+            self.logger.info("WarehouseUnit ready.")
         except Exception as e:
-            self.logger.exception(f"CRASH in control_loop: {e}")
+            self.logger.error(f"Startup failed: {e}")
     =}
 
-    timer test_trigger(100 msec)
+    reaction(message_filter.requests) -> channel_out {=
+        """ Handle incoming task requests """
+        if not message_filter.requests.value:
+            return
 
-    reaction(test_trigger) {=
-        self.logger.info("TEST AUTOMATICO: Richiesta di EXTRACT")
-        self.handle_extract()
+        for bank_index, msg in message_filter.requests.value:
+            node_path = getattr(msg.payload, "node", "")
+            id_to_store = msg.identifier 
+            sender_name = msg.sender
+            
+            action = None
+            if "ExtractTray" in node_path:
+                action = "extract"
+            elif "SendBack" in node_path:
+                action = "sendback"
+
+            if action:
+                self.logger.info(f"Task {action.upper()} received from {sender_name} (ID: {id_to_store})")
+                
+                if not self.wh_ctrl.is_busy:
+                    success = False
+                    if action == "extract":
+                        success = self.wh_ctrl.extract()
+                    else:
+                        success = self.wh_ctrl.sendback()
+                    
+                    if success:
+                        self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name}
+                        self.is_busy.value = True
+                    else:
+                        # Task rejected
+                        error_msg = FrostMessage(
+                            sender=self._get_reactor_name(),
+                            target=sender_name,
+                            identifier=str(uuid.uuid4()),
+                            correlation_id=id_to_store,
+                            header=FrostHeader(
+                                type=MsgType.ERROR,
+                                version=(1, 0, 0),
+                                namespace=MsgNamespace.METHOD,
+                                msg_name=MethodMsgName.COMPLETED 
+                            ),
+                            payload=MethodPayload(node="PHYSICAL_ERROR_IMPOSSIBLE")
+                        )
+                        self._set_channel_out_port([error_msg], channel_out)
+                else:
+                    # Machine busy, queue the task
+                    self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name}
+    =}
+
+    reaction(control_loop) -> channel_out {=
+        """ Update physics and handle completion signals """
+        try:
+            if self.wh_ctrl.is_busy:
+                self.wh_ctrl.tick()
+                self.is_busy.value = True
+                
+            elif self.is_busy.value == True:
+                if self.pending_tasks:
+                    # Finalize current task
+                    corr_id = next(iter(self.pending_tasks))
+                    task_info = self.pending_tasks[corr_id]
+                    
+                    msg = FrostMessage(
+                        sender=self._get_reactor_name(),
+                        target=task_info["sender"],
+                        identifier=str(uuid.uuid4()),
+                        correlation_id=corr_id,
+                        header=FrostHeader(
+                            type=MsgType.RESPONSE,
+                            version=(1, 0, 0),
+                            namespace=MsgNamespace.METHOD,
+                            msg_name=MethodMsgName.COMPLETED
+                        ),
+                        payload=MethodPayload(node="PHYSICAL_DONE")
+                    )
+                    
+                    self._set_channel_out_port([msg], channel_out)
+                    self.logger.info(f"Physical task completed. Signal sent for ID: {corr_id}")
+                    del self.pending_tasks[corr_id]
+                
+                self.is_busy.value = False
+                
+                # Try to start next valid task from queue
+                while self.pending_tasks and not self.wh_ctrl.is_busy:
+                    next_id = next(iter(self.pending_tasks))
+                    next_task = self.pending_tasks[next_id]
+                    
+                    success = False
+                    if next_task["action"] == "extract":
+                        success = self.wh_ctrl.extract()
+                    else:
+                        success = self.wh_ctrl.sendback()
+                        
+                    if success:
+                        self.logger.info(f"Starting next queued task: {next_task['action'].upper()} (ID: {next_id})")
+                        self.is_busy.value = True
+                    else:
+                        # Queued task rejected (e.g. bay empty for sendback)
+                        error_msg = FrostMessage(
+                            sender=self._get_reactor_name(),
+                            target=next_task["sender"],
+                            identifier=str(uuid.uuid4()),
+                            correlation_id=next_id,
+                            header=FrostHeader(
+                                type=MsgType.ERROR,
+                                version=(1, 0, 0),
+                                namespace=MsgNamespace.METHOD,
+                                msg_name=MethodMsgName.COMPLETED
+                            ),
+                            payload=MethodPayload(node="PHYSICAL_ERROR_IMPOSSIBLE")
+                        )
+                        self._set_channel_out_port([error_msg], channel_out)
+                        self.logger.error(f"Queued Task REJECTED: Sending ERROR for {next_id}")
+                        del self.pending_tasks[next_id]
+                    
+        except Exception as e:
+            self.logger.error(f"Execution error: {e}")
     =}
 }
