@@ -50,18 +50,36 @@ class Platform:
         except ValueError:
             return False
     
-    def update_y_position(self, new_y: float):
-        """
-        A setter for the controller to update the platform's
-        position after a move action is complete.
-        """
-        self.curr_y = new_y
-        return True
+    def update_y_position(self, target_y: float):
+            """
+            Moves the platform towards target_y by one time-step increment.
+            Assuming LF calls this every 50ms (0.05 seconds).
+            """
+            dt = 0.05
+            step = self.speed_y * dt
+            
+            if abs(target_y - self.curr_y) <= step:
+                self.curr_y = target_y
+            elif target_y > self.curr_y:
+                self.curr_y += step
+            else:
+                self.curr_y -= step
+                
+            return True
 
-    def update_x_position(self, new_x: float):
+    def update_x_position(self, target_x: float):
         """
-        A setter for the controller to update the platform's
-        position after an extract action is complete.
+        Moves the platform towards target_x by one time-step increment.
+        Assuming LF calls this every 50ms (0.05 seconds).
         """
-        self.curr_x = new_x
+        dt = 0.05 # 50 msec
+        step = self.extract_speed * dt
+            
+        if abs(target_x - self.curr_x) <= step:
+                self.curr_x = target_x
+        elif target_x > self.curr_x:
+                self.curr_x += step
+        else:
+                self.curr_x -= step
+                
         return True

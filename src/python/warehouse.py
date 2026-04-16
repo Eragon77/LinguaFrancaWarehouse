@@ -18,8 +18,6 @@ class Warehouse:
         self.queued_slots = []
         self.in_view_slot = None 
 
-        # --- Busy State ---
-        self.is_busy = False
 
         # --- Initialize all slot positions ---
         for i in range(self.NUM_ROWS):
@@ -89,18 +87,6 @@ class Warehouse:
         return None # Controller must handle if ID is not found
 
     # --- State Methods for the Controller ---
-
-    def is_ready(self):
-        """Allows the LF controller to check if the warehouse is busy."""
-        return not self.is_busy
-
-    def set_busy(self):
-        """Allows the LF controller to mark the warehouse as busy."""
-        self.is_busy = True
-
-    def set_idle(self):
-        """Allows the LF controller to mark the warehouse as ready."""
-        self.is_busy = False
     
     def find_empty_storage_slot(self):
         """
