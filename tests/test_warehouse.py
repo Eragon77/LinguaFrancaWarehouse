@@ -44,7 +44,7 @@ def test_get_slot_by_id_success(warehouse):
     # Test storage slot
     slot_l5 = warehouse.get_slot_by_id("storage_L_5")
     assert slot_l5 is not None
-    assert slot_l5.position_id == "storage_L_5"
+    assert slot_l5.slot_id == "storage_L_5"
     
     # Test queue slot
     slot_q1 = warehouse.get_slot_by_id("queue_1")

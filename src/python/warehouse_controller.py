@@ -25,7 +25,7 @@ class WarehouseController:
         slot_to = self.wh.get_empty_queue_slot()
         if not slot_from or not slot_to: return False
         
-        logging.info(f"Starting ENQUEUE: {slot_from.position_id} -> {slot_to.position_id}")
+        logging.info(f"Starting ENQUEUE: {slot_from.slot_id} -> {slot_to.slot_id}")
         self._start_mission(slot_from, slot_to)
         return True
 
@@ -36,7 +36,7 @@ class WarehouseController:
             logging.error(f"[REJECTED] Sendback impossible: From={slot_from}, To={slot_to}")
             return False
 
-        logging.info(f"Starting SEND_BACK: {slot_from.position_id} -> {slot_to.position_id}")
+        logging.info(f"Starting SEND_BACK: {slot_from.slot_id} -> {slot_to.slot_id}")
         self._start_mission(slot_from, slot_to)
         return True
 
@@ -45,7 +45,7 @@ class WarehouseController:
         slot_to = self.wh.get_tray_bay_slot() 
         if not slot_from or not slot_to: return False
             
-        logging.info(f"Starting EXTRACT: {slot_from.position_id} -> {slot_to.position_id}")
+        logging.info(f"Starting EXTRACT: {slot_from.slot_id} -> {slot_to.slot_id}")
         self._start_mission(slot_from, slot_to)
         return True
 

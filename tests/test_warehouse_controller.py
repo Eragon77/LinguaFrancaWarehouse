@@ -22,7 +22,7 @@ def mock_tray():
 @pytest.fixture
 def slot_storage(mock_tray):
     slot = Mock(spec=Slot)
-    slot.position_id = "storage_L_10"
+    slot.slot_id = "storage_L_10"
     slot.x = 0.5
     slot.y = 1.67
     slot.tray = mock_tray
@@ -32,7 +32,7 @@ def slot_storage(mock_tray):
 @pytest.fixture
 def slot_queue(mock_tray):
     slot = Mock(spec=Slot)
-    slot.position_id = "queue_0"
+    slot.slot_id = "queue_0"
     slot.x = 0.835
     slot.y = 0.0
     slot.tray = mock_tray
@@ -128,7 +128,7 @@ def test_build_extract_sequence_success(controller, mock_warehouse, slot_queue):
     slot_queue.remove_tray = Mock()
     
     mock_warehouse.get_occupied_queue_slot.return_value = slot_queue
-    mock_warehouse.get_tray_bay_slot.return_value = Mock(position_id="in_view", x=0.835, y=0.5, tray=None)
+    mock_warehouse.get_tray_bay_slot.return_value = Mock(slot_id="in_view", x=0.835, y=0.5, tray=None)
     
     success = controller.build_extract_sequence()
     
