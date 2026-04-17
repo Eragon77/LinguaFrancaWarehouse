@@ -1,12 +1,12 @@
 {
   "jobs": [
     {
-      "id": "Job_001",
-      "name": "Sequenza_Estrazione_Deposito",
+      "id": "Job_Stress",
+      "name": "Stress_Test_Sequenziale",
       "tasks": [
         {
           "id": "T1",
-          "name": "SendBack",
+          "name": "ExtractTray",
           "eligible_machines": ["warehouseunit"],
           "processing_time": 20
         },
@@ -16,14 +16,25 @@
           "eligible_machines": ["warehouseunit"],
           "processing_time": 20,
           "dependencies": ["T1"]
+        },
+        {
+          "id": "T3",
+          "name": "SendBack",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "dependencies": ["T2"]
+        },
+        {
+          "id": "T4",
+          "name": "SendBack",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "dependencies": ["T3"]
         }
       ]
     }
   ],
   "machines": [
-    {
-      "id": "warehouseunit",
-      "name": "warehouseunit"
-    }
+    { "id": "warehouseunit", "name": "warehouseunit" }
   ]
 }
