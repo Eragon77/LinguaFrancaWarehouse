@@ -4,7 +4,7 @@ from tray import Tray
 
 @pytest.fixture
 def empty_slot():
-    return Slot(position_id="test_slot", x=0.5, y=1.0)
+    return Slot(slot_id="test_slot", x=0.5, y=1.0)
 
 @pytest.fixture
 def test_tray():

@@ -17,7 +17,7 @@ def another_tray():
 
 @pytest.fixture
 def empty_slot():
-    return Slot(position_id="S1", x=0.5, y=1.0)
+    return Slot(slot_id="S1", x=0.5, y=1.0)
 
 @pytest.fixture
 def full_slot(empty_slot, test_tray):

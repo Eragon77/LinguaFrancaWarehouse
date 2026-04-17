@@ -25,23 +25,27 @@ class Warehouse:
 
             # Left Column (Storage)
             left_id = f"storage_L_{i}"
-            left_slot = Slot(position_id=left_id, x=self.X_LEFT, y=y_pos)
+            # Added slot_type="storage"
+            left_slot = Slot(slot_id=left_id, x=self.X_LEFT, y=y_pos, slot_type="storage")
             self.storage_slots.append(left_slot)
 
             # Right Column (Mixed)
             if i < 3: # Rows 0-2 (Queue)
                 slot_id = f"queue_{i}"
-                new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
+                # Added slot_type="queue"
+                new_slot = Slot(slot_id=slot_id, x=self.X_RIGHT, y=y_pos, slot_type="queue")
                 self.queued_slots.append(new_slot)
             
             elif i == 3: # Row 3 (Bay)
                 slot_id = "in_view"
-                new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
+                # Added slot_type="bay"
+                new_slot = Slot(slot_id=slot_id, x=self.X_RIGHT, y=y_pos, slot_type="bay")
                 self.in_view_slot = new_slot
             
             else: # Rows 4-19 (Storage)
                 slot_id = f"storage_R_{i}"
-                new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
+                # Added slot_type="storage"
+                new_slot = Slot(slot_id=slot_id, x=self.X_RIGHT, y=y_pos, slot_type="storage")
                 self.storage_slots.append(new_slot)
 
         try:
@@ -82,7 +86,7 @@ class Warehouse:
     def get_slot_by_id(self, slot_id: str):
         """Finds and returns a slot object from its ID string."""
         for slot in self._get_all_slots():
-            if slot.position_id == slot_id:
+            if slot.slot_id == slot_id:
                 return slot
         return None # Controller must handle if ID is not found
 

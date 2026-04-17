@@ -1,10 +1,12 @@
 from tray import Tray
+
 class Slot:
-    def __init__(self, position_id: str, x: float, y: float):
+    def __init__(self, slot_id: str, x: float, y: float, slot_type: str = "storage"):
         # Unique coordinates and identifier for this specific slot.
         self.x = x
         self.y = y
-        self.position_id = position_id
+        self.slot_id = slot_id
+        self.slot_type = slot_type
         
         # Defines the physical size of the slot
         self.length = 1.62
@@ -16,7 +18,7 @@ class Slot:
 
     def __repr__(self):
         status = "Full" if self.tray else "Empty"
-        return f"<Slot ID: '{self.position_id}' ({status})>"
+        return f"<Slot ID: '{self.slot_id}' ({status})>"
 
     def add_tray(self, tray_to_add: Tray):
         """
@@ -24,7 +26,7 @@ class Slot:
         Returns False if the slot is already occupied.
         """
         if self.tray is not None:
-            raise ValueError(f"Slot {self.position_id} is already occupied by Tray {self.tray.tray_id}")  # Slot is full
+            raise ValueError(f"Slot {self.slot_id} is already occupied by Tray {self.tray.tray_id}")  # Slot is full
         
         self.tray = tray_to_add
         return True
@@ -35,7 +37,7 @@ class Slot:
         Returns None if the slot is already empty.
         """
         if self.tray is None:
-            raise ValueError(f"Slot {self.position_id} is already empty.")
+            raise ValueError(f"Slot {self.slot_id} is already empty.")
         
         tray_removed = self.tray
         self.tray = None
