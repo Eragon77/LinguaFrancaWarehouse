@@ -75,6 +75,13 @@ class Warehouse:
             print(f"Error during warehouse initialization: {e}")
 
 
+
+    def get_slot_at(self, x: float, y: float) -> Slot | None:
+        for slot in self._get_all_slots():
+            if abs(slot.x - x) < 0.01 and abs(slot.y - y) < 0.01:
+                return slot
+        return None
+
     def _get_all_slots(self):
         """Helper to return one single list of all slots."""
         # Combines all slot lists into one for easy searching
@@ -91,42 +98,6 @@ class Warehouse:
         return None # Controller must handle if ID is not found
 
     # --- State Methods for the Controller ---
-    
-    def find_empty_storage_slot(self):
-        """
-        Finds the first available empty slot in the storage.
-        Returns None if no empty slot is found.
-        """
-        for slot in self.storage_slots:
-            if slot.tray is None:
-                return slot
-        
-        return None
-    
-    def find_slot_by_tray_id(self, tray_id: str):
-        """
-        Finds and returns the slot containing the tray with the given ID.
-        This is necessary for commands like 'enqueue_tray'.
-        Returns None if no such tray is found.
-        """
-        # Ensure the input tray_id is treated as a string for comparison
-        target_id_str = str(tray_id)
-        for slot in self._get_all_slots():
-            # Check if the tray exists and its ID matches
-            if slot.tray and str(slot.tray.tray_id) == target_id_str:
-                return slot
-        return None
-    
-    def get_empty_queue_slot(self)->Slot | None:
-        """
-        Checks if all the queue slots are empty.
-        If they are, returns the first queue slot (queue_0).
-        Otherwise, returns None.
-        """
-        for slot in self.queued_slots:
-            if slot.tray is not None:
-                return None
-        return self.queued_slots[0]
     
     def get_occupied_queue_slot(self)->Slot | None:
         """

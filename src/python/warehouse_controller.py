@@ -1,132 +1,228 @@
 import logging
 from typing import Optional
+from enum import Enum
 from warehouse_platform import Platform
 from slot import Slot
 from cfg_engine import get_next_action_from_egglog
 
+class MissionState(Enum):
+    """Consolidated mission states."""
+    IDLE = "idle"
+    FETCH = "fetch"
+    DELIVER = "deliver"
+
 class WarehouseController:
+    """Controller for warehouse robot missions using egglog planning."""
+
     def __init__(self, warehouse):
+        """Initialize controller with warehouse reference."""
         self.wh = warehouse
-        self.current_mission: str = "IDLE"  # Can be "IDLE", "FETCH", "DELIVER"
+        self.state = MissionState.IDLE
         self.source_slot: Optional[Slot] = None
         self.dest_slot: Optional[Slot] = None
+        self.dest_type: Optional[str] = None
+        self.locked_target_id: Optional[str] = None
 
     @property
     def is_busy(self) -> bool:
-        """System is busy if mission is not idle."""
-        return self.current_mission != "IDLE"
+        """Return True if a mission is active."""
+        return self.state != MissionState.IDLE
 
-    # ---------
-    # API / COMMAND BUILDERS
-    # ---------
-    
+    def _start_mission(self, src: Optional[Slot], dst: Optional[Slot], dst_type: Optional[str] = None):
+        """Initialize mission: source/dest slots, phase, lock status."""
+        self.source_slot = src
+        self.dest_slot = dst
+        self.dest_type = dst_type
+        self.locked_target_id = dst.slot_id if dst else None
+        self.state = MissionState.FETCH
+
     def build_enqueue_sequence(self, tray_id: str) -> bool:
-        slot_from = self.wh.find_slot_by_tray_id(tray_id)
-        slot_to = self.wh.get_empty_queue_slot()
-        if not slot_from or not slot_to: return False
-        
-        logging.info(f"Starting ENQUEUE: {slot_from.slot_id} -> {slot_to.slot_id}")
-        self._start_mission(slot_from, slot_to)
-        return True
-
-    def build_sendback_sequence(self) -> bool:
-        slot_from = self.wh.get_occupied_bay_slot()
-        slot_to = self.wh.find_empty_storage_slot()
-        if not slot_from or not slot_to: 
-            logging.error(f"[REJECTED] Sendback impossible: From={slot_from}, To={slot_to}")
+        """Move tray from storage to empty queue slot."""
+        src = self.wh.find_slot_by_tray_id(tray_id)
+        dst = self.wh.get_empty_queue_slot()
+        if not src or not dst:
             return False
-
-        logging.info(f"Starting SEND_BACK: {slot_from.slot_id} -> {slot_to.slot_id}")
-        self._start_mission(slot_from, slot_to)
+        logging.info(f"Starting ENQUEUE: {src.slot_id} -> {dst.slot_id}")
+        self._start_mission(src, dst)
         return True
 
     def build_extract_sequence(self) -> bool:
-        slot_from = self.wh.get_occupied_queue_slot()
-        slot_to = self.wh.get_tray_bay_slot() 
-        if not slot_from or not slot_to: return False
-            
-        logging.info(f"Starting EXTRACT: {slot_from.slot_id} -> {slot_to.slot_id}")
-        self._start_mission(slot_from, slot_to)
+        """Move tray from queue to bay."""
+        src = self.wh.get_occupied_queue_slot()
+        dst = self.wh.get_tray_bay_slot()
+        if not src or not dst or dst.tray is not None:
+            return False
+        logging.info(f"Starting EXTRACT: {src.slot_id} -> {dst.slot_id}")
+        self._start_mission(src, dst)
         return True
 
-    def _start_mission(self, slot_from: Slot, slot_to: Slot):
-        self.source_slot = slot_from
-        self.dest_slot = slot_to
-        self.current_mission = "FETCH"
+    def build_sendback_sequence(self) -> bool:
+        """Move tray from bay to any storage slot."""
+        src = self.wh.get_occupied_bay_slot()
+        if not src:
+            logging.error("[REJECTED] SendBack: Bay is empty")
+            return False
+        logging.info(f"Starting SENDBACK: {src.slot_id} -> storage")
+        self._start_mission(src, None, "storage")
+        return True
 
-    # ---------------------------------------------------------------------
-    # EXECUTION INTERFACE
-    # ---------------------------------------------------------------------
+    def build_fetch_any_empty_sequence(self) -> bool:
+        """Fetch empty tray and deliver to bay."""
+        dst = self.wh.get_tray_bay_slot()
+        if not dst or dst.tray is not None:
+            return False
+        logging.info(f"Starting FETCH_ANY_EMPTY")
+        self._start_mission(None, dst)
+        return True
 
     def tick(self) -> bool:
+        """Execute one mission step: query egglog and run action."""
         if not self.is_busy:
+            print("Controller IDLE")
             return False
 
-        platform = self.wh.platform
-        target_slot = self.source_slot if self.current_mission == "FETCH" else self.dest_slot
+        plat = self.wh.platform
+        result = self._get_next_action(plat)
         
-        func_name, args = get_next_action_from_egglog(
-            curr_y=platform.curr_y,
-            curr_x=platform.curr_x,
-            is_holding_tray=platform.is_holding_tray(),
-            is_busy=False,
-            is_target_empty=(target_slot.tray is None),
-            cmd_type=self.current_mission,
-            target_x=target_slot.x,
-            target_y=target_slot.y
-        )
+        if result["type"] == "lock":
+            self.locked_target_id = result.get("slot_id", "")
+            if self.locked_target_id:
+                logging.info(f"Locked target: {self.locked_target_id}")
+            return True
 
-        if func_name != "wait":
-            self.execute_step(func_name, args)
-            
-            if func_name == "pick_up_from":
-                logging.info("Fetch complete. Switching to DELIVER phase.")
-                self.current_mission = "DELIVER"
-                
-            elif func_name == "place_into":
-                logging.info("Deliver complete. Mission finished.")
-                self.set_idle()
-                
+        if result["type"] == "wait":
+            return False
+
+        if not self._execute_action(result, plat):
+            logging.error(f"Action failed: {result['type']}")
+            self.set_idle()
+            return False
+
+        if result["type"] == "pick" and self.state == MissionState.FETCH:
+            if not self.source_slot:
+                self.source_slot = self.wh.get_slot_at(plat.curr_x, plat.curr_y)
+            self.state = MissionState.DELIVER
+            logging.info("Transitioned to DELIVER phase")
+            return True
+
+        if result["type"] == "place" and self.state == MissionState.DELIVER:
+            print(f"   ✨ MISSION DONE")
+            logging.info("Mission complete")
+            self.set_idle()
+            return True
+
         return True
 
-    def execute_step(self, function_name, args):
-        platform = self.wh.platform
+    def _get_next_action(self, plat) -> dict:
+        phase = "deliver" if self.state == MissionState.DELIVER else "fetch"
+        tid = int(self.source_slot.tray.tray_id) if self.source_slot and self.source_slot.tray else 0
+        
+        if self.dest_slot:
+            ttype = self.dest_slot.slot_type
+        elif self.locked_target_id:
+            locked_slot = self.wh.get_slot_by_id(self.locked_target_id)
+            ttype = locked_slot.slot_type if locked_slot else ""
+        else:
+            ttype = self.dest_type or ""
+
+        if self.state == MissionState.FETCH and self.source_slot and self.source_slot.tray:
+            cmd = "FETCH"
+            effective_locked_id = self.locked_target_id or ""
+        elif self.state == MissionState.FETCH:
+            cmd = "FETCH_ANY_EMPTY"
+            effective_locked_id = self.locked_target_id or ""
+        elif self.state == MissionState.DELIVER and self.dest_slot:
+            cmd = "DELIVER"
+            effective_locked_id = self.dest_slot.slot_id
+        elif self.state == MissionState.DELIVER and not self.locked_target_id:
+            cmd = "SEARCH_TARGET"
+            effective_locked_id = ""
+        else:
+            cmd = "DELIVER"
+            effective_locked_id = self.locked_target_id or ""
+
+        return get_next_action_from_egglog(
+            warehouse=self.wh,
+            cy=plat.curr_y,
+            cx=plat.curr_x,
+            holding=plat.is_holding_tray(),
+            phase=phase,
+            cmd_type=cmd,
+            target_id=tid,
+            target_type=ttype,
+            locked_id=effective_locked_id
+        )
+    def _execute_action(self, action: dict, plat) -> bool:
+        """Execute physical action on platform."""
         try:
-            if function_name == "pick_up_from":
-                return platform.pick_up_from(self.source_slot)
-            elif function_name == "place_into":
-                return platform.place_into(self.dest_slot)
+            atype = action["type"]
             
-            method = getattr(platform, function_name)
-            return method(*args)
+            if atype == "pick":
+                target = self.source_slot or self.wh.get_slot_at(plat.curr_x, plat.curr_y)
+                if not target:
+                    logging.error("No slot to pick from")
+                    return False
+                return plat.pick_up_from(target)
+            
+            elif atype == "place":
+                target = self.dest_slot or self.wh.get_slot_at(plat.curr_x, plat.curr_y)
+                if not target:
+                    logging.error("No slot to place into")
+                    return False
+                success = plat.place_into(target)
+                if success:
+                    self.locked_target_id = None
+                return success
+            
+            elif atype == "update_y":
+                return plat.update_y_position(action["val"])
+            elif atype == "update_x":
+                return plat.update_x_position(action["val"])
+            
+            return True
         except Exception as e:
-            logging.error(f"[EXECUTION FAIL] {function_name}: {e}")
+            logging.error(f"[EXECUTION FAIL] {action['type']}: {e}")
             return False
 
-    # ---------------------------------------------------------------------
-    # STATE MANAGEMENT
-    # ---------------------------------------------------------------------
-
-    def set_idle(self): 
-        self.current_mission = "IDLE"
+    def set_idle(self):
+        """Reset mission state."""
+        self.state = MissionState.IDLE
         self.source_slot = None
         self.dest_slot = None
-        
-    def is_ready(self) -> bool: 
+        self.dest_type = None
+        self.locked_target_id = None
+
+    def is_ready(self) -> bool:
+        """Return True if idle and can accept new missions."""
         return not self.is_busy
 
-    # --- API FROST ---
-    def extract(self, TrayNumber: int=0): return self.build_extract_sequence()
-    def enqueueTray(self, TrayNumber: int): return self.build_enqueue_sequence(str(TrayNumber))
-    def sendback(self, TrayNumber: int=0): return self.build_sendback_sequence()
-    
+    def extract(self, TrayNumber: int = 0) -> bool:
+        """Public wrapper for extract mission."""
+        return self.build_extract_sequence()
+
+    def enqueueTray(self, TrayNumber: int) -> bool:
+        """Public wrapper for enqueue mission."""
+        return self.build_enqueue_sequence(str(TrayNumber))
+
+    def sendback(self, TrayNumber: int = 0) -> bool:
+        """Public wrapper for sendback mission."""
+        return self.build_sendback_sequence()
+
+    def fetch_any_empty(self) -> bool:
+        """Public wrapper for fetch_any_empty mission."""
+        return self.build_fetch_any_empty_sequence()
+
     def requestInfoBay(self) -> str:
+        """Return bay status as JSON."""
         import json
-        return json.dumps({"status": "Occupied" if self.wh.tray_in_bay > 0 else "Empty", "tray_id": self.wh.tray_in_bay})
+        return json.dumps({
+            "status": "Occupied" if self.wh.tray_in_bay > 0 else "Empty",
+            "tray_id": self.wh.tray_in_bay
+        })
 
     def clearBay(self) -> bool:
-        bay_slot = self.wh.get_tray_bay_slot()
-        if bay_slot and bay_slot.tray:
-            bay_slot.remove_tray()
-            return True
+        """Remove tray from bay."""
+        bay = self.wh.get_tray_bay_slot()
+        if bay and bay.tray:
+            bay.remove_tray()
         return True

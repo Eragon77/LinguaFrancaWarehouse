@@ -19,17 +19,17 @@
         },
         {
           "id": "T3",
-          "name": "SendBack",
+          "name": "FetchAnyEmpty",
           "eligible_machines": ["warehouseunit"],
           "processing_time": 20,
-          "dependencies": ["T2"]
+          "dependencies": ["T1", "T2"]
         },
         {
           "id": "T4",
           "name": "SendBack",
           "eligible_machines": ["warehouseunit"],
           "processing_time": 20,
-          "dependencies": ["T3"]
+          "dependencies": ["T1", "T2","T3"]
         }
       ]
     }
