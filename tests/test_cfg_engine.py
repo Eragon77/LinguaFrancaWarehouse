@@ -1,107 +1,249 @@
+"""
+Unit tests for warehouse control system using egglog rewrite rules.
+Tests all navigation and tray handling scenarios.
+"""
+
+import pytest
+from unittest.mock import Mock, patch
+from typing import List, Optional
 from cfg_engine import get_next_action_from_egglog
 
-# ---------------------------------------------------------
-# 1. OVERRIDE & IDLE STATES
-# ---------------------------------------------------------
 
-def test_busy_state_forces_wait():
-    """If the hardware is busy, the engine must return 'wait' regardless of the mission."""
-    action, args = get_next_action_from_egglog(
-        curr_y=0, curr_x=0, target_y=10, target_x=10,
-        is_holding_tray=False, 
-        is_busy=True, # <--- System is busy
-        is_target_empty=False, 
-        cmd_type="FETCH"
-    )
-    assert action == "wait"
-    assert args == ()
+class TestWarehouseActions:
+    """Test suite for get_next_action_from_egglog function"""
 
-def test_idle_command_forces_wait():
-    """If the command type is IDLE, the engine must return 'wait'."""
-    action, args = get_next_action_from_egglog(
-        curr_y=0, curr_x=0, target_y=10, target_x=10,
-        is_holding_tray=False, 
-        is_busy=False, 
-        is_target_empty=False, 
-        cmd_type="IDLE" # <--- IDLE command
-    )
-    assert action == "wait"
-    assert args == ()
+    @pytest.fixture
+    def mock_warehouse(self):
+        """Create mock warehouse with configurable slots"""
+        class MockTray:
+            def __init__(self, tray_id: int, is_full: bool):
+                self.tray_id = tray_id
+                self.is_full = is_full
 
-# ---------------------------------------------------------
-# 2. FETCH SEQUENCE
-# ---------------------------------------------------------
+        class MockSlot:
+            def __init__(self, slot_id: str, slot_type: str, x: float, y: float, tray: Optional[MockTray] = None):
+                self.slot_id = slot_id
+                self.slot_type = slot_type
+                self.x = x
+                self.y = y
+                self.tray = tray
 
-def test_fetch_move_y_first():
-    """FETCH: If Y is not aligned, the robot must move Y first."""
-    action, args = get_next_action_from_egglog(
-        curr_y=2.0, curr_x=5.0, 
-        target_y=10.0, target_x=15.0, # Target Y is different
-        is_holding_tray=False, is_busy=False, is_target_empty=False, 
-        cmd_type="FETCH"
-    )
-    assert action == "update_y_position"
-    assert args == (10.0,)
+        warehouse = Mock()
+        warehouse._get_all_slots = Mock()
+        return warehouse, MockSlot, MockTray
 
-def test_fetch_move_x_when_y_aligned():
-    """FETCH: If Y is aligned but X is not, the robot must move X."""
-    action, args = get_next_action_from_egglog(
-        curr_y=10.0, curr_x=5.0,  # Y is at target
-        target_y=10.0, target_x=15.0, # Target X is different
-        is_holding_tray=False, is_busy=False, is_target_empty=False, 
-        cmd_type="FETCH"
-    )
-    assert action == "update_x_position"
-    assert args == (15.0,)
+    def test_fetch_tray_move_y_first(self, mock_warehouse):
+        """Test FETCH command: move Y axis when not aligned"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 5.0, 10.0, MockTray(100, True))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH", target_id=100
+        )
+        
+        assert result[0] == "update_y_position"
+        assert result[1][0] == 10.0
 
-def test_fetch_pick_up_when_fully_aligned():
-    """FETCH: If X and Y are aligned, and the slot is NOT empty, pick up the tray."""
-    action, args = get_next_action_from_egglog(
-        curr_y=10.0, curr_x=15.0, 
-        target_y=10.0, target_x=15.0, # Fully aligned
-        is_holding_tray=False, is_busy=False, 
-        is_target_empty=False, # <--- Tray is there
-        cmd_type="FETCH"
-    )
-    assert action == "pick_up_from"
-    assert args == ()
+    def test_fetch_tray_move_x_after_y(self, mock_warehouse):
+        """Test FETCH command: move X axis after Y is aligned"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 5.0, 10.0, MockTray(100, True))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=10.0, curr_x=0.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH", target_id=100
+        )
+        
+        assert result[0] == "update_x_position"
+        assert result[1][0] == 5.0
 
-# ---------------------------------------------------------
-# 3. DELIVER SEQUENCE
-# ---------------------------------------------------------
+    def test_fetch_tray_pickup_when_aligned(self, mock_warehouse):
+        """Test FETCH command: pickup when fully aligned with target slot"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 5.0, 10.0, MockTray(100, True))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=10.0, curr_x=5.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH", target_id=100
+        )
+        
+        assert result[0] == "pick_up_from"
+        assert len(result[1]) == 0
 
-def test_deliver_move_y_first():
-    """DELIVER: If holding a tray and Y is not aligned, move Y first."""
-    action, args = get_next_action_from_egglog(
-        curr_y=10.0, curr_x=15.0, 
-        target_y=20.0, target_x=25.0, # Target Y is different
-        is_holding_tray=True, # <--- Holding tray
-        is_busy=False, is_target_empty=True, 
-        cmd_type="DELIVER"
-    )
-    assert action == "update_y_position"
-    assert args == (20.0,)
+    def test_deliver_tray_move_y(self, mock_warehouse):
+        """Test DELIVER command: move Y to empty slot position"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 3.0, 7.0, None)
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=True,
+            is_busy=False, cmd_type="DELIVER", target_type="storage"
+        )
+        
+        assert result[0] == "update_y_position"
+        assert result[1][0] == 7.0
 
-def test_deliver_move_x_when_y_aligned():
-    """DELIVER: If holding a tray and Y is aligned, move X."""
-    action, args = get_next_action_from_egglog(
-        curr_y=20.0, curr_x=15.0, # Y is at target
-        target_y=20.0, target_x=25.0, # Target X is different
-        is_holding_tray=True, # <--- Holding tray
-        is_busy=False, is_target_empty=True, 
-        cmd_type="DELIVER"
-    )
-    assert action == "update_x_position"
-    assert args == (25.0,)
+    def test_deliver_tray_move_x(self, mock_warehouse):
+        """Test DELIVER command: move X after Y aligned"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 3.0, 7.0, None)
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=7.0, curr_x=0.0, is_holding_tray=True,
+            is_busy=False, cmd_type="DELIVER", target_type="storage"
+        )
+        
+        assert result[0] == "update_x_position"
+        assert result[1][0] == 3.0
 
-def test_deliver_place_into_when_fully_aligned():
-    """DELIVER: If fully aligned and slot is empty, place the tray."""
-    action, args = get_next_action_from_egglog(
-        curr_y=20.0, curr_x=25.0, 
-        target_y=20.0, target_x=25.0, # Fully aligned
-        is_holding_tray=True, is_busy=False, 
-        is_target_empty=True, # <--- Destination is empty
-        cmd_type="DELIVER"
-    )
-    assert action == "place_into"
-    assert args == ()
+    def test_deliver_tray_place_when_aligned(self, mock_warehouse):
+        """Test DELIVER command: place tray when aligned with empty slot"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 3.0, 7.0, None)
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=7.0, curr_x=3.0, is_holding_tray=True,
+            is_busy=False, cmd_type="DELIVER", target_type="storage"
+        )
+        
+        assert result[0] == "place_into"
+
+    def test_fetch_any_empty_tray_move_y(self, mock_warehouse):
+        """Test FETCH_ANY_EMPTY: move Y to slot with empty tray (is_full=False)"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 2.0, 4.0, MockTray(200, False))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH_ANY_EMPTY"
+        )
+        
+        assert result[0] == "update_y_position"
+        assert result[1][0] == 4.0
+
+    def test_fetch_any_empty_tray_pickup(self, mock_warehouse):
+        """Test FETCH_ANY_EMPTY: pickup when aligned with empty tray slot"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 2.0, 4.0, MockTray(200, False))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=4.0, curr_x=2.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH_ANY_EMPTY"
+        )
+        
+        assert result[0] == "pick_up_from"
+
+    def test_idle_when_busy(self, mock_warehouse):
+        """Test IDLE: wait when robot is busy"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = []
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=False,
+            is_busy=True, cmd_type="FETCH", target_id=100
+        )
+        
+        assert result[0] == "wait"
+
+    def test_idle_command_explicit(self, mock_warehouse):
+        """Test IDLE: wait when idle command is given"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = []
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=5.0, curr_x=5.0, is_holding_tray=True,
+            is_busy=False, cmd_type="IDLE"
+        )
+        
+        assert result[0] == "wait"
+
+    def test_deliver_to_queue_type(self, mock_warehouse):
+        """Test DELIVER: target queue-type slot"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("queue1", "queue", 1.0, 2.0, None)
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=True,
+            is_busy=False, cmd_type="DELIVER", target_type="queue"
+        )
+        
+        assert result[0] == "update_y_position"
+        assert result[1][0] == 2.0
+
+    def test_deliver_to_bay_type(self, mock_warehouse):
+        """Test DELIVER: target bay-type slot"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("bay1", "bay", 8.0, 9.0, None)
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=True,
+            is_busy=False, cmd_type="DELIVER", target_type="bay"
+        )
+        
+        assert result[0] == "update_y_position"
+        assert result[1][0] == 9.0
+
+    def test_multiple_slots_selects_first_match(self, mock_warehouse):
+        """Test system selects first matching slot when multiple exist"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 1.0, 1.0, MockTray(1, False)),
+            MockSlot("slot2", "storage", 10.0, 10.0, MockTray(2, False))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH_ANY_EMPTY"
+        )
+        
+        # Should target first slot found (slot1 at y=1.0)
+        assert result[1][0] == 1.0
+
+    def test_fetch_nonexistent_tray(self, mock_warehouse):
+        """Test FETCH with non-existent tray ID falls back to wait"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 5.0, 5.0, MockTray(999, True))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=False,
+            is_busy=False, cmd_type="FETCH", target_id=100
+        )
+        
+        assert result[0] == "wait"
+
+    def test_deliver_no_empty_slot(self, mock_warehouse):
+        """Test DELIVER when no empty slot of target type exists"""
+        warehouse, MockSlot, MockTray = mock_warehouse
+        warehouse._get_all_slots.return_value = [
+            MockSlot("slot1", "storage", 5.0, 5.0, MockTray(1, True))
+        ]
+        
+        result = get_next_action_from_egglog(
+            warehouse, curr_y=0.0, curr_x=0.0, is_holding_tray=True,
+            is_busy=False, cmd_type="DELIVER", target_type="storage"
+        )
+        
+        assert result[0] == "wait"
