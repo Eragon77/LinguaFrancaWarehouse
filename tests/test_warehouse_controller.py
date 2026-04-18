@@ -1,50 +1,23 @@
 import pytest
-import logging
 from unittest.mock import Mock, patch
-from io import StringIO
-import sys
-
 from warehouse_controller import WarehouseController
-from warehouse import Warehouse
-from warehouse_platform import Platform
 from slot import Slot
 from tray import Tray
 
-logging.basicConfig(level=logging.ERROR, stream=sys.stdout)
-
-
-@pytest.fixture
-def mock_tray():
-    tray = Mock(spec=Tray)
-    tray.tray_id = "5"
-    return tray
-
-@pytest.fixture
-def slot_storage(mock_tray):
-    slot = Mock(spec=Slot)
-    slot.slot_id = "storage_L_10"
-    slot.x = 0.5
-    slot.y = 1.67
-    slot.tray = mock_tray
-    slot.remove_tray.return_value = mock_tray
-    return slot
-
-@pytest.fixture
-def slot_queue(mock_tray):
-    slot = Mock(spec=Slot)
-    slot.slot_id = "queue_0"
-    slot.x = 0.835
-    slot.y = 0.0
-    slot.tray = mock_tray
-    return slot
+# ---------------------------------------------------------
+# FIXTURES (Mocks)
+# ---------------------------------------------------------
 
 @pytest.fixture
 def mock_platform():
-    platform = Mock(spec=Platform)
+    """
+    Provides a mocked Platform object with default coordinate values
+    and pre-configured return values for hardware-simulation methods.
+    """
+    platform = Mock()
     platform.curr_x = 0.0
     platform.curr_y = 0.0
-    platform.speed_y = 0.5
-    platform.extract_speed = 1.5
+    platform.is_holding_tray.return_value = False
     
     platform.update_y_position.return_value = True
     platform.update_x_position.return_value = True
@@ -53,88 +26,180 @@ def mock_platform():
     return platform
 
 @pytest.fixture
-def mock_warehouse(mock_platform, slot_storage, slot_queue):
-    warehouse = Mock(spec=Warehouse)
+def mock_warehouse(mock_platform):
+    """
+    Provides a mocked Warehouse object containing the mocked platform.
+    """
+    warehouse = Mock()
     warehouse.platform = mock_platform
-    
-    warehouse.find_slot_by_tray_id.return_value = slot_storage
-    warehouse.get_empty_queue_slot.return_value = slot_queue
-    warehouse.get_occupied_bay_slot.return_value = None
-    
-    warehouse.set_busy = Mock()
-    warehouse.set_idle = Mock()
     return warehouse
-
 
 @pytest.fixture
 def controller(mock_warehouse):
+    """
+    Provides a WarehouseController instance initialized with mocked dependencies.
+    """
     return WarehouseController(mock_warehouse)
 
+@pytest.fixture
+def dummy_slot_with_tray():
+    """
+    Provides a mocked Slot object occupied by a Tray with ID '105'.
+    """
+    slot = Mock(spec=Slot)
+    slot.slot_id = "storage_0"
+    slot.slot_type = "storage"
+    slot.tray = Mock(spec=Tray)
+    slot.tray.tray_id = "105"
+    return slot
 
-def test_get_time_y_zero_speed(controller, mock_platform):
-    mock_platform.speed_y = 0.0
-    assert controller._get_time_y(1.0) == 0.0
+@pytest.fixture
+def dummy_empty_slot():
+    """
+    Provides an empty mocked Slot object of type 'queue'.
+    """
+    slot = Mock(spec=Slot)
+    slot.slot_id = "queue_0"
+    slot.slot_type = "queue"
+    slot.tray = None
+    return slot
 
-def test_get_time_x_calculation(controller, mock_platform):
-    assert controller._get_time_x(0.835) == pytest.approx(0.5566, rel=1e-3)
+# ---------------------------------------------------------
+# TESTS: STATE AND BUILDERS
+# ---------------------------------------------------------
 
-def test_build_enqueue_sequence_success(controller, mock_warehouse, slot_storage, slot_queue):
-    mock_warehouse.find_slot_by_tray_id.return_value = slot_storage
+def test_initial_state(controller):
+    """
+    Verifies that the controller starts in IDLE state with no active missions.
+    """
+    assert controller.current_mission == "IDLE"
+    assert controller.is_busy is False
+    assert controller.is_ready() is True
+
+def test_build_enqueue_sequence_success(controller, mock_warehouse, dummy_slot_with_tray, dummy_empty_slot):
+    """
+    Tests if build_enqueue_sequence correctly identifies source/destination slots
+    and transitions the controller mission to FETCH.
+    """
+    mock_warehouse.find_slot_by_tray_id.return_value = dummy_slot_with_tray
+    mock_warehouse.get_empty_queue_slot.return_value = dummy_empty_slot
     
-    success = controller.build_enqueue_sequence("5")
+    success = controller.build_enqueue_sequence("105")
     
     assert success is True
-    assert len(controller.current_move_sequence) == 8
-    
-    time, method, args, msg = controller.current_move_sequence[-1]
-    assert method == "update_y_position"
-    assert args[0] == slot_storage.y
+    assert controller.current_mission == "FETCH"
+    assert controller.source_slot == dummy_slot_with_tray
+    assert controller.dest_slot == dummy_empty_slot
+    assert controller.is_busy is True
 
-def test_build_enqueue_sequence_fail_queue_full(controller, mock_warehouse):
-    mock_warehouse.get_empty_queue_slot.return_value = None
+def test_build_fetch_any_empty_sequence(controller, mock_warehouse, dummy_empty_slot):
+    """
+    Verifies that the autonomous empty tray search mission initializes correctly
+    with a placeholder source slot (None) and a valid destination.
+    """
+    mock_warehouse.get_empty_storage_slot.return_value = dummy_empty_slot
     
-    success = controller.build_enqueue_sequence("5")
-    
-    assert success is False
-    assert len(controller.current_move_sequence) == 0
-
-def test_execute_step_success(controller, mock_platform):
-    controller.wh.platform.update_y_position.return_value = True
-    success = controller.execute_step("update_y_position", (1.5,))
+    success = controller.build_fetch_any_empty_sequence()
     
     assert success is True
-    mock_platform.update_y_position.assert_called_once_with(1.5)
+    assert controller.current_mission == "FETCH"
+    assert controller.source_slot is None 
+    assert controller.dest_slot == dummy_empty_slot
 
-def test_execute_step_fail_attribute_error(controller):
-    success = controller.execute_step("non_existent_method", (1,))
+# ---------------------------------------------------------
+# TESTS: TICK AND EGGLOG
+# ---------------------------------------------------------
+
+def test_tick_returns_false_when_idle(controller):
+    """
+    Ensures that the tick method immediately returns False if no mission is active.
+    """
+    assert controller.tick() is False
+
+@patch("warehouse_controller.get_next_action_from_egglog")
+def test_tick_executes_movement(mock_egglog, controller, mock_warehouse, dummy_slot_with_tray):
+    """
+    Verifies that when Egglog suggests a movement action, the controller 
+    triggers the corresponding method on the physical platform.
+    """
+    controller.current_mission = "FETCH"
+    controller.source_slot = dummy_slot_with_tray
+    
+    mock_egglog.return_value = ("update_y_position", (3.5,))
+    
+    result = controller.tick()
+    
+    assert result is True
+    mock_warehouse.platform.update_y_position.assert_called_once_with(3.5)
+    assert controller.current_mission == "FETCH" 
+
+@patch("warehouse_controller.get_next_action_from_egglog")
+def test_tick_switches_to_deliver_on_pickup(mock_egglog, controller, mock_warehouse, dummy_slot_with_tray):
+    """
+    Tests the transition from FETCH to DELIVER state once a pick_up_from 
+    action is successfully commanded by the logic engine.
+    """
+    controller.current_mission = "FETCH"
+    controller.source_slot = dummy_slot_with_tray
+    
+    mock_egglog.return_value = ("pick_up_from", ())
+    
+    controller.tick()
+    
+    mock_warehouse.platform.pick_up_from.assert_called_once_with(dummy_slot_with_tray)
+    assert controller.current_mission == "DELIVER"
+
+@patch("warehouse_controller.get_next_action_from_egglog")
+def test_tick_autonomous_fetch_updates_source_slot(mock_egglog, controller, mock_warehouse):
+    """
+    Verifies that during an autonomous search (FETCH_ANY_EMPTY), the controller
+    identifies and assigns the source_slot based on current platform position at pickup.
+    """
+    controller.current_mission = "FETCH"
+    controller.source_slot = None
+    
+    found_slot = Mock(spec=Slot)
+    mock_warehouse.get_slot_at.return_value = found_slot
+    
+    mock_egglog.return_value = ("pick_up_from", ())
+    
+    controller.tick()
+    
+    assert controller.source_slot == found_slot
+    assert controller.current_mission == "DELIVER"
+    mock_warehouse.platform.pick_up_from.assert_called_once_with(found_slot)
+
+@patch("warehouse_controller.get_next_action_from_egglog")
+def test_tick_finishes_mission_on_place(mock_egglog, controller, mock_warehouse, dummy_empty_slot):
+    """
+    Tests the completion of a mission, ensuring the controller resets to 
+    IDLE and clears slot references after a place_into action.
+    """
+    controller.current_mission = "DELIVER"
+    controller.dest_slot = dummy_empty_slot
+    
+    mock_egglog.return_value = ("place_into", ())
+    
+    controller.tick()
+    
+    mock_warehouse.platform.place_into.assert_called_once_with(dummy_empty_slot)
+    assert controller.current_mission == "IDLE"
+    assert controller.source_slot is None
+    assert controller.dest_slot is None
+
+# ---------------------------------------------------------
+# TESTS: EXCEPTION HANDLING
+# ---------------------------------------------------------
+
+def test_execute_step_handles_exceptions(controller, mock_warehouse, dummy_slot_with_tray):
+    """
+    Ensures that hardware-level exceptions are caught by execute_step,
+    preventing application crashes and returning a failure status.
+    """
+    mock_warehouse.platform.pick_up_from.side_effect = Exception("Hardware Fault")
+    
+    controller.source_slot = dummy_slot_with_tray
+    
+    success = controller.execute_step("pick_up_from", ())
     
     assert success is False
-
-def test_execute_step_fail_value_error(controller, mock_platform):
-    mock_platform.place_into.side_effect = ValueError("Slot occupied violation")
-    
-    success = controller.execute_step("place_into", (Mock(spec=Slot),))
-    
-    assert success is False
-    
-def test_execute_step_fail_zero_division_error(controller, mock_platform):
-    mock_platform.update_y_position.side_effect = ZeroDivisionError("Time calc failed")
-    
-    success = controller.execute_step("update_y_position", (1.0,))
-    
-    assert success is False
-
-def test_build_extract_sequence_success(controller, mock_warehouse, slot_queue):
-    slot_queue.remove_tray = Mock()
-    
-    mock_warehouse.get_occupied_queue_slot.return_value = slot_queue
-    mock_warehouse.get_tray_bay_slot.return_value = Mock(slot_id="in_view", x=0.835, y=0.5, tray=None)
-    
-    success = controller.build_extract_sequence()
-    
-    assert success is True
-    assert len(controller.current_move_sequence) == 8
-    
-    # The actual PICKUP action is the 4th step to be executed (index 5 in the reverse list)
-    # The list is indexed 0..7. The pickup message is at index 5.
-    assert controller.current_move_sequence[5][3].startswith("PICKUP: Tray picked up from queue_0")
