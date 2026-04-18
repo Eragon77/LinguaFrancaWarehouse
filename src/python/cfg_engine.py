@@ -1,188 +1,224 @@
 from __future__ import annotations
 from egglog import *
 
+class Tray(Expr):
+    """Represents a tray with ID and fullness status."""
+    def __init__(self, tray_id: i64Like, is_full: BoolLike) -> None: ...
 
-# --- Symbolic types ---
+class Slot(Expr):
+    """Represents a warehouse slot with position, type, and optional tray."""
+    def __init__(self, slot_id: StringLike, slot_type: SlotType, x: f64Like, y: f64Like, tray: OptionTray) -> None: ...
+    
+class OptionTray(Expr):
+    """Optional tray container (none or some)."""
+    @classmethod
+    def none(cls) -> OptionTray: ...
+    @classmethod
+    def some(cls, tray: Tray) -> OptionTray: ...
 
-class Action(Expr):
-    """Possible physical actions the robot arm can take."""
+class SlotType(Expr):
+    """Type of slot: storage, queue, or bay."""
     @classmethod
-    def update_y_position(cls, target_y: f64Like) -> Action: ...
-    
+    def storage(cls) -> SlotType: ...
     @classmethod
-    def update_x_position(cls, target_x: f64Like) -> Action: ...
-    
+    def queue(cls) -> SlotType: ...
     @classmethod
-    def pick_up_from(cls) -> Action: ...
-    
-    @classmethod
-    def place_into(cls) -> Action: ...
-    
-    @classmethod
-    def wait(cls) -> Action: ...
+    def bay(cls) -> SlotType: ...
 
+class MissionPhase(Expr):
+    """Explicit mission phase for state tracking."""
+    @classmethod
+    def fetch(cls) -> MissionPhase: ...
+    @classmethod
+    def deliver(cls) -> MissionPhase: ...
+
+class LockedTarget(Expr):
+    """Declares a slot ID as locked for delivery."""
+    def __init__(self, slot_id: StringLike) -> None: ...
+
+class ActionResult(Expr):
+    """Typed action result with embedded parameters."""
+    @classmethod
+    def update_y(cls, val: f64Like) -> ActionResult: ...
+    @classmethod
+    def update_x(cls, val: f64Like) -> ActionResult: ...
+    @classmethod
+    def pick(cls) -> ActionResult: ...
+    @classmethod
+    def place(cls) -> ActionResult: ...
+    @classmethod
+    def lock(cls, slot_id: StringLike) -> ActionResult: ...
+    @classmethod
+    def wait(cls) -> ActionResult: ...
 
 class Command(Expr):
-    """High-level mission commands issued to the warehouse controller."""
+    """High-level commands given to the robot."""
     @classmethod
-    def fetch_from(cls, source_x: f64Like, source_y: f64Like) -> Command: ...
-
+    def fetch_tray(cls, tray_id: i64Like) -> Command: ...
     @classmethod
-    def deliver_to(cls, dest_x: f64Like, dest_y: f64Like) -> Command: ...
-    
+    def deliver_to(cls, stype: SlotType) -> Command: ...
+    @classmethod
+    def fetch_any_empty(cls) -> Command: ...
+    @classmethod
+    def search_target(cls, stype: SlotType) -> Command: ...
     @classmethod
     def idle(cls) -> Command: ...
 
+class RobotState(Expr):
+    """Robot state with explicit mission phase."""
+    def __init__(self, curr_y: f64Like, curr_x: f64Like, holding: BoolLike, phase: MissionPhase, cmd: Command) -> None: ...
+    def next_action(self) -> ActionResult: ...
 
-class WarehouseState(Expr):
-    """Snapshot of the warehouse physical state at a given tick."""
-    def __init__(
-        self, 
-        curr_y: f64Like,
-        curr_x: f64Like,
-        is_holding_tray: BoolLike,
-        is_busy: BoolLike,
-        is_target_slot_empty: BoolLike,
-        cmd: Command
-    ) -> None: ...
-    
-    def get_action(self) -> Action: ...
+cy, cx, sy, sx = vars_("cy cx sy sx", f64)
+holding, is_f = vars_("holding is_f", Bool)
+cmd, = vars_("cmd", Command)
+sid, = vars_("sid", String)
+stype, = vars_("stype", SlotType)
+tid, = vars_("tid", i64)
+result, = vars_("result", ActionResult)
+phase, = vars_("phase", MissionPhase)
+locked_id, = vars_("locked_id", String)
 
-
-# --- Variable declarations  ---
-
-current_y, target_y = vars_("current_y target_y", f64)
-current_x, target_x = vars_("current_x target_x", f64)
-busy, has_tray, slot_empty = vars_("busy has_tray slot_empty", Bool)
-command, = vars_("command", Command)
-
-T = Bool(True)
-F = Bool(False)
-
-
-# --- Rewrite rules ---
+T, F = Bool(True), Bool(False)
 
 WAREHOUSE_RULES = (
-    # If the arm is busy, always wait
-    rewrite(
-        WarehouseState(current_y, current_x, has_tray, T, slot_empty, command).get_action()
-    ).to(
-        Action.wait()
-    ),
+    # SEARCH TARGET: lock empty slot
+    rule(
+        eq(result).to(RobotState(cy, cx, holding, phase, Command.search_target(stype)).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.none())
+    ).then(union(result).with_(ActionResult.lock(sid))),
 
-    # FETCH: move Y first if not at target row
-    rewrite(
-        WarehouseState(current_y, current_x, F, F, slot_empty, Command.fetch_from(target_x, target_y)).get_action()
-    ).to(
-        Action.update_y_position(target_y),
-        ne(current_y).to(target_y),
-    ),
+    # FETCH: move Y
+    rule(
+        eq(result).to(RobotState(cy, cx, F, MissionPhase.fetch(), Command.fetch_tray(tid)).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f))),
+        cy != sy
+    ).then(union(result).with_(ActionResult.update_y(sy))),
 
-    # FETCH: move X once Y is aligned
-    rewrite(
-        WarehouseState(current_y, current_x, F, F, slot_empty, Command.fetch_from(target_x, target_y)).get_action()
-    ).to(
-        Action.update_x_position(target_x),
-        ne(current_x).to(target_x),
-        eq(current_y).to(target_y),
-    ),
+    # FETCH: move X
+    rule(
+        eq(result).to(RobotState(sy, cx, F, MissionPhase.fetch(), Command.fetch_tray(tid)).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f))),
+        cx != sx
+    ).then(union(result).with_(ActionResult.update_x(sx))),
 
-    # FETCH: pick up when arm is exactly at target position
-    rewrite(
-        WarehouseState(current_y, current_x, F, F, F, Command.fetch_from(target_x, target_y)).get_action()
-    ).to(
-        Action.pick_up_from(),
-        eq(current_y).to(target_y),
-        eq(current_x).to(target_x),
-    ),
+    # FETCH: pick
+    rule(
+        eq(result).to(RobotState(sy, sx, F, MissionPhase.fetch(), Command.fetch_tray(tid)).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f)))
+    ).then(union(result).with_(ActionResult.pick())),
 
-    # DELIVER: move Y first if not at destination row
-    rewrite(
-        WarehouseState(current_y, current_x, T, F, slot_empty, Command.deliver_to(target_x, target_y)).get_action()
-    ).to(
-        Action.update_y_position(target_y),
-        ne(current_y).to(target_y),
-    ),
+    # FETCH_ANY_EMPTY: move Y
+    rule(
+        eq(result).to(RobotState(cy, cx, F, MissionPhase.fetch(), Command.fetch_any_empty()).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F))),
+        cy != sy
+    ).then(union(result).with_(ActionResult.update_y(sy))),
 
-    # DELIVER: move X once Y is aligned
-    rewrite(
-        WarehouseState(current_y, current_x, T, F, slot_empty, Command.deliver_to(target_x, target_y)).get_action()
-    ).to(
-        Action.update_x_position(target_x),
-        ne(current_x).to(target_x),
-        eq(current_y).to(target_y),
-    ),
+    # FETCH_ANY_EMPTY: move X
+    rule(
+        eq(result).to(RobotState(sy, cx, F, MissionPhase.fetch(), Command.fetch_any_empty()).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F))),
+        cx != sx
+    ).then(union(result).with_(ActionResult.update_x(sx))),
 
-    # DELIVER: place tray when at destination and slot is empty
-    rewrite(
-        WarehouseState(current_y, current_x, T, F, T, Command.deliver_to(target_x, target_y)).get_action()
-    ).to(
-        Action.place_into(),
-        eq(current_y).to(target_y),
-        eq(current_x).to(target_x),
-    ),
+    # FETCH_ANY_EMPTY: pick
+    rule(
+        eq(result).to(RobotState(sy, sx, F, MissionPhase.fetch(), Command.fetch_any_empty()).next_action()),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F)))
+    ).then(union(result).with_(ActionResult.pick())),
 
-    # IDLE: nothing to do, just wait
-    rewrite(
-        WarehouseState(current_y, current_x, has_tray, busy, slot_empty, Command.idle()).get_action()
-    ).to(
-        Action.wait()
-    ),
+    # DELIVER: move Y
+    rule(
+        eq(result).to(RobotState(cy, cx, T, MissionPhase.deliver(), Command.deliver_to(stype)).next_action()),
+        LockedTarget(locked_id),
+        Slot(locked_id, stype, sx, sy, OptionTray.none()),
+        cy != sy
+    ).then(union(result).with_(ActionResult.update_y(sy))),
+
+    # DELIVER: move X
+    rule(
+        eq(result).to(RobotState(sy, cx, T, MissionPhase.deliver(), Command.deliver_to(stype)).next_action()),
+        LockedTarget(locked_id),
+        Slot(locked_id, stype, sx, sy, OptionTray.none()),
+        cx != sx
+    ).then(union(result).with_(ActionResult.update_x(sx))),
+
+    # DELIVER: place
+    rule(
+        eq(result).to(RobotState(sy, sx, T, MissionPhase.deliver(), Command.deliver_to(stype)).next_action()),
+        LockedTarget(locked_id),
+        Slot(locked_id, stype, sx, sy, OptionTray.none())
+    ).then(union(result).with_(ActionResult.place())),
+
+    # IDLE: wait
+    rewrite(RobotState(cy, cx, holding, phase, Command.idle()).next_action()).to(ActionResult.wait()),
+    
 )
 
-
-def get_next_action_from_egglog(
-    curr_y: float,
-    curr_x: float,
-    is_holding_tray: bool,
-    is_busy: bool,
-    is_target_empty: bool,
-    cmd_type: str,
-    target_x: float = 0.0,
-    target_y: float = 0.0
-) -> tuple[str, tuple]:
-    """Return the next action to execute."""
-
-    # Cast inputs to float
-    curr_y   = float(curr_y)
-    curr_x   = float(curr_x)
-    target_x = float(target_x)
-    target_y = float(target_y)
-
-    # Build command
-    if cmd_type == "FETCH":
-        cmd_expr = Command.fetch_from(f64(target_x), f64(target_y))
-    elif cmd_type == "DELIVER":
-        cmd_expr = Command.deliver_to(f64(target_x), f64(target_y))
-    else:
-        cmd_expr = Command.idle()
-
-    # Build query
-    state_query = WarehouseState(
-        f64(curr_y),
-        f64(curr_x),
-        Bool(is_holding_tray),
-        Bool(is_busy),
-        Bool(is_target_empty),
-        cmd_expr
-    ).get_action()
-
+def get_next_action_from_egglog(warehouse, cy: float, cx: float, holding: bool, 
+                                 phase: str, cmd_type: str, target_id: int = 0,
+                                 target_type: str = "", locked_id: str = "") -> dict:
+    """
+    Query egglog for next action. Returns {type, args} with typed fields.
+    Phase must be 'fetch' or 'deliver'.
+    """
     egraph = EGraph()
     egraph.register(*WAREHOUSE_RULES)
-    egraph.let("query", state_query)
-    egraph.run(10)
-    best_action = egraph.extract(state_query)
 
-    # Map symbolic result back to a Python-friendly action string
-    action_str = str(best_action)
+    for s in warehouse._get_all_slots():
+        egg_tray = OptionTray.none()
+        if s.tray:
+            egg_tray = OptionTray.some(Tray(int(s.tray.tray_id), Bool(s.tray.is_full)))
+        
+        stype_expr = (SlotType.queue() if s.slot_type == "queue" else
+                      SlotType.bay() if s.slot_type == "bay" else SlotType.storage())
+        egraph.register(Slot(s.slot_id, stype_expr, f64(s.x), f64(s.y), egg_tray))
 
-    if "update_y_position" in action_str:
-        return "update_y_position", (target_y,)
-    elif "update_x_position" in action_str:
-        return "update_x_position", (target_x,)
-    elif "pick_up_from" in action_str:
-        return "pick_up_from", ()
-    elif "place_into" in action_str:
-        return "place_into", ()
+    if locked_id:
+        egraph.register(LockedTarget(String(locked_id)))
+
+    phase_expr = MissionPhase.deliver() if phase == "deliver" else MissionPhase.fetch()
+    
+    if cmd_type == "FETCH":
+        cmd_expr = Command.fetch_tray(i64(target_id))
+    elif cmd_type == "DELIVER":
+        st_expr = (SlotType.queue() if target_type == "queue" else
+                   SlotType.bay() if target_type == "bay" else SlotType.storage())
+        cmd_expr = Command.deliver_to(st_expr)
+    elif cmd_type == "FETCH_ANY_EMPTY":
+        cmd_expr = Command.fetch_any_empty()
+    elif cmd_type == "SEARCH_TARGET":
+        st_expr = (SlotType.queue() if target_type == "queue" else
+                   SlotType.bay() if target_type == "bay" else SlotType.storage())
+        cmd_expr = Command.search_target(st_expr)
     else:
-        return "wait", ()
+        cmd_expr = Command.idle()
+    
+
+    query = RobotState(f64(cy), f64(cx), Bool(holding), phase_expr, cmd_expr).next_action()
+    egraph.register(query)
+    egraph.run(10)
+    
+    try:
+        best = egraph.extract(query)
+        s = str(best)
+        
+        if "update_y(" in s:
+            val = float([x for x in s.replace("(", " ").replace(")", " ").split() if x.replace(".", "").replace("-", "").isdigit()][0])
+            return {"type": "update_y", "val": val}
+        elif "update_x(" in s:
+            val = float([x for x in s.replace("(", " ").replace(")", " ").split() if x.replace(".", "").replace("-", "").isdigit()][0])
+            return {"type": "update_x", "val": val}
+        elif "pick(" in s:
+            return {"type": "pick"}
+        elif "place(" in s:
+            return {"type": "place"}
+        elif "lock(" in s:
+            import re
+            m = re.search(r'"([^"]*)"', s)
+            return {"type": "lock", "slot_id": m.group(1) if m else ""}
+        return {"type": "wait"}
+    except Exception as e:
+        logging.error(f"Egglog extraction failed: {e}")
+        return {"type": "wait"}

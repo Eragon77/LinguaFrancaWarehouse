@@ -21,6 +21,12 @@ root:
       returns:
         - !!BooleanVariableNode
             name: "done"
+    - !!AsyncMethodNode
+      name: "FetchAnyEmpty"
+      description: "fetch any empty tray"
+      returns:
+        - !!BooleanVariableNode
+            name: "done"
 
     - !!FolderNode
       name: "Status"
