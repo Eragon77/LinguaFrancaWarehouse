@@ -74,7 +74,13 @@ class Warehouse:
         except AttributeError as e:
             print(f"Error during warehouse initialization: {e}")
 
-
+    def has_tray(self, tray_id: int | str) -> bool:
+        """Check whether a tray with the given ID exists anywhere in the warehouse."""
+        tid = int(tray_id) 
+        for slot in self._get_all_slots():
+            if slot.tray and slot.tray.tray_id == tid:
+                return True
+        return False
 
     def get_slot_at(self, x: float, y: float) -> Slot | None:
         for slot in self._get_all_slots():
@@ -135,3 +141,4 @@ class Warehouse:
         if self.in_view_slot and self.in_view_slot.tray:
             return self.in_view_slot.tray.tray_id
         return 0
+    

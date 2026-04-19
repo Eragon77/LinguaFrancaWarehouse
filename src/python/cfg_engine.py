@@ -84,7 +84,7 @@ T, F = Bool(True), Bool(False)
 WAREHOUSE_RULES = (
     # SEARCH TARGET: lock empty slot
     rule(
-        eq(result).to(RobotState(cy, cx, holding, phase, Command.search_target(stype)).next_action()),
+        eq(result).to(RobotState(cy, cx, T, phase, Command.search_target(stype)).next_action()),
         Slot(sid, stype, sx, sy, OptionTray.none())
     ).then(union(result).with_(ActionResult.lock(sid))),
 
