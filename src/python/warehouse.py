@@ -18,8 +18,6 @@ class Warehouse:
         self.queued_slots = []
         self.in_view_slot = None 
 
-        # --- Busy State ---
-        self.is_busy = False
 
         # --- Initialize all slot positions ---
         for i in range(self.NUM_ROWS):
@@ -27,23 +25,27 @@ class Warehouse:
 
             # Left Column (Storage)
             left_id = f"storage_L_{i}"
-            left_slot = Slot(position_id=left_id, x=self.X_LEFT, y=y_pos)
+            # Added slot_type="storage"
+            left_slot = Slot(slot_id=left_id, x=self.X_LEFT, y=y_pos, slot_type="storage")
             self.storage_slots.append(left_slot)
 
             # Right Column (Mixed)
             if i < 3: # Rows 0-2 (Queue)
                 slot_id = f"queue_{i}"
-                new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
+                # Added slot_type="queue"
+                new_slot = Slot(slot_id=slot_id, x=self.X_RIGHT, y=y_pos, slot_type="queue")
                 self.queued_slots.append(new_slot)
             
             elif i == 3: # Row 3 (Bay)
                 slot_id = "in_view"
-                new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
+                # Added slot_type="bay"
+                new_slot = Slot(slot_id=slot_id, x=self.X_RIGHT, y=y_pos, slot_type="bay")
                 self.in_view_slot = new_slot
             
             else: # Rows 4-19 (Storage)
                 slot_id = f"storage_R_{i}"
-                new_slot = Slot(position_id=slot_id, x=self.X_RIGHT, y=y_pos)
+                # Added slot_type="storage"
+                new_slot = Slot(slot_id=slot_id, x=self.X_RIGHT, y=y_pos, slot_type="storage")
                 self.storage_slots.append(new_slot)
 
         try:
@@ -62,13 +64,29 @@ class Warehouse:
             self.get_slot_by_id("storage_L_10").add_tray(tray4)
 
             tray5 = Tray(weight=3.1)
-            self.get_slot_by_id("storage_R_15").add_tray(tray5) 
+            self.get_slot_by_id("storage_R_15").add_tray(tray5)
+
+            tray6 = Tray(weight=2.0)
+            self.get_slot_by_id("queue_0").add_tray(tray6)
             
             print("Initialized Warehouse with sample trays.")
         
         except AttributeError as e:
             print(f"Error during warehouse initialization: {e}")
 
+    def has_tray(self, tray_id: int | str) -> bool:
+        """Check whether a tray with the given ID exists anywhere in the warehouse."""
+        tid = int(tray_id) 
+        for slot in self._get_all_slots():
+            if slot.tray and slot.tray.tray_id == tid:
+                return True
+        return False
+
+    def get_slot_at(self, x: float, y: float) -> Slot | None:
+        for slot in self._get_all_slots():
+            if abs(slot.x - x) < 0.01 and abs(slot.y - y) < 0.01:
+                return slot
+        return None
 
     def _get_all_slots(self):
         """Helper to return one single list of all slots."""
@@ -81,59 +99,11 @@ class Warehouse:
     def get_slot_by_id(self, slot_id: str):
         """Finds and returns a slot object from its ID string."""
         for slot in self._get_all_slots():
-            if slot.position_id == slot_id:
+            if slot.slot_id == slot_id:
                 return slot
         return None # Controller must handle if ID is not found
 
     # --- State Methods for the Controller ---
-
-    def is_ready(self):
-        """Allows the LF controller to check if the warehouse is busy."""
-        return not self.is_busy
-
-    def set_busy(self):
-        """Allows the LF controller to mark the warehouse as busy."""
-        self.is_busy = True
-
-    def set_idle(self):
-        """Allows the LF controller to mark the warehouse as ready."""
-        self.is_busy = False
-    
-    def find_empty_storage_slot(self):
-        """
-        Finds the first available empty slot in the storage.
-        Returns None if no empty slot is found.
-        """
-        for slot in self.storage_slots:
-            if slot.tray is None:
-                return slot
-        
-        return None
-    
-    def find_slot_by_tray_id(self, tray_id: str):
-        """
-        Finds and returns the slot containing the tray with the given ID.
-        This is necessary for commands like 'enqueue_tray'.
-        Returns None if no such tray is found.
-        """
-        # Ensure the input tray_id is treated as a string for comparison
-        target_id_str = str(tray_id)
-        for slot in self._get_all_slots():
-            # Check if the tray exists and its ID matches
-            if slot.tray and str(slot.tray.tray_id) == target_id_str:
-                return slot
-        return None
-    
-    def get_empty_queue_slot(self)->Slot | None:
-        """
-        Checks if all the queue slots are empty.
-        If they are, returns the first queue slot (queue_0).
-        Otherwise, returns None.
-        """
-        for slot in self.queued_slots:
-            if slot.tray is not None:
-                return None
-        return self.queued_slots[0]
     
     def get_occupied_queue_slot(self)->Slot | None:
         """
@@ -171,3 +141,4 @@ class Warehouse:
         if self.in_view_slot and self.in_view_slot.tray:
             return self.in_view_slot.tray.tray_id
         return 0
+    

@@ -1,0 +1,124 @@
+target Python;
+
+import FrostReactor from "../frost/src/lib/FrostReactor.lf"
+
+preamble {=
+    import uuid
+    import json
+=}
+
+reactor Scheduler extends FrostReactor {
+    state scheduling_instance = ""
+    state my_machine_name = "warehouseunit" 
+    state task_queue = {= [] =}
+    state current_task = ""
+    state expected_correlation_id = "" 
+    state waiting_for_response = {= False =}
+
+    logical action next_task_delay
+
+    method send_next_task(out_port) {=
+        if not self.task_queue:
+            self.logger.info("=== ALL TASKS COMPLETED ===")
+            return
+
+        if self.waiting_for_response:
+            return
+
+        task = self.task_queue.pop(0)
+        self.current_task = task["name"]
+        tray = task.get("tray")
+        
+        node = f"/Machine/{self.current_task}"
+
+        args = [tray] if tray is not None else []
+        
+        u_id = str(uuid.uuid4())
+        msg = FrostMessage(
+            sender=self.name,
+            target=self.my_machine_name,
+            identifier=u_id,
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1, 0, 0),
+                namespace=MsgNamespace.METHOD,
+                msg_name=MethodMsgName.INVOKE
+            ),
+            payload=MethodPayload(node=node, args=args)  
+        )
+        
+        self.expected_correlation_id = u_id
+        self.waiting_for_response = True
+        self._set_channel_out_port([msg], out_port)
+        self.logger.info(f">>> Sent: {self.current_task} tray={tray} (ID: {u_id})")
+    =}
+
+    reaction(startup) {=
+        try:
+            with open(self.scheduling_instance, 'r') as file:
+                plan = json.load(file)
+                self.task_queue = []
+                for task in plan["jobs"][0]["tasks"]:
+                    item = {"name": task["name"]}
+                    if "parameters" in task and "tray_number" in task["parameters"]:
+                        item["tray"] = task["parameters"]["tray_number"]
+                    self.task_queue.append(item)
+        except Exception as e:
+            self.logger.error(f"JSON Load Error: {e}")
+    =}
+
+    reaction(connected_to_bus) -> channel_out {=
+        self.logger.info("Connected to bus. Starting sequence...")
+        self.send_next_task(channel_out)
+    =}
+
+    reaction(message_filter.responses) -> next_task_delay {=
+        """ Process success response messages """
+        if not message_filter.responses.value: 
+            return
+        
+        for bank_index, message in message_filter.responses.value:
+            if message.header.namespace == MsgNamespace.PROTOCOL: 
+                continue
+            
+            node_val = getattr(message.payload, "node", "N/A")
+            
+            if message.sender.lower() == self.my_machine_name.lower():
+                if node_val != "PHYSICAL_DONE":
+                    next_task_delay.schedule(SEC(1)) 
+                    continue 
+
+                if node_val == "PHYSICAL_DONE" and message.correlation_id == self.expected_correlation_id:
+                    self.logger.info(f"<<< TASK SUCCESS: {self.current_task}")
+                    self.waiting_for_response = False
+                    self.expected_correlation_id = ""
+                    next_task_delay.schedule(MSEC(50))
+                else:
+                    self.logger.warning(f"ID Mismatch: Got {message.correlation_id}, expected {self.expected_correlation_id}")
+    =}
+
+    reaction(message_filter.errors) -> next_task_delay {=
+        """ Process critical error messages """
+        if not message_filter.errors.value: return
+        
+        for bank_index, message in message_filter.errors.value:
+            self.logger.error(f"Reason: {getattr(message.payload, 'node', 'Unknown')}")
+            
+            # Reset state to allow next task
+            self.waiting_for_response = False
+            self.expected_correlation_id = ""
+            
+            next_task_delay.schedule(SEC(1))
+    =}
+
+    reaction(next_task_delay) -> channel_out {=
+        if not self.waiting_for_response:
+            self.send_next_task(channel_out)
+    =}
+
+    reaction(message_filter.discarded_messages) {=
+        if message_filter.discarded_messages.value:
+            for bank_index, message in message_filter.discarded_messages.value:
+                self.logger.error(f"Message discarded by filter: {message.header.msg_name} from {message.sender}")
+    =}
+}
