@@ -36,7 +36,6 @@ class WarehouseController:
         self.dest_slot = dst
         self.dest_type = dst_type
         self.target_tray_id = tray_id
-        self.locked_target_id = dst.slot_id if dst else None
         self.state = MissionState.FETCH
 
     def build_enqueue_sequence(self, tray_id: str) -> bool:
@@ -56,6 +55,9 @@ class WarehouseController:
             return False
 
         if tray_number:
+            if not self.wh.has_tray(tray_number):
+                logging.error(f"Tray {tray_number} not found in warehouse")
+                return False
             logging.info(f"Starting EXTRACT of tray {tray_number} from anywhere")
             self._start_mission(None, dst, tray_id=tray_number)
         else:
@@ -116,7 +118,6 @@ class WarehouseController:
             return True
 
         if result["type"] == "place" and self.state == MissionState.DELIVER:
-            print(f"   ✨ MISSION DONE")
             logging.info("Mission complete")
             self.set_idle()
             return True
@@ -183,7 +184,7 @@ class WarehouseController:
                 return plat.pick_up_from(target)
             
             elif atype == "place":
-                target = self.dest_slot or self.wh.get_slot_at(plat.curr_x, plat.curr_y)
+                target = (self.dest_slot or (self.wh.get_slot_by_id(self.locked_target_id) if self.locked_target_id else None) or self.wh.get_slot_at(plat.curr_x, plat.curr_y))
                 if not target:
                     logging.error("No slot to place into")
                     return False
