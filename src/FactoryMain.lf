@@ -1,66 +1,50 @@
 target Python {
-    timeout: 2 min,
-    files: ["utils/", "python/"]
+    timeout: 50 sec,
+    fast: False,
+    files: [
+        "../frost/src/python_lib/frost.py",
+        "../frost/src/python_lib/l_formatter.py",
+        "../frost/src/python_lib/time_utils.py",
+        "python/warehouse_platform.py",
+        "python/tray.py",
+        "python/slot.py",
+        "python/warehouse.py",
+        "python/warehouse_controller.py",
+        "python/cfg_engine.py"
+    ],
+    logging: info,
+    single-threaded: true,
 };
 
+import FrostBus from "../frost/src/lib/FrostBus.lf"
 import WarehouseUnit from "WarehouseUnit.lf"
+import Scheduler from "Scheduler.lf"
 
 preamble {=
+    import uuid
     import os
-    import sys
-    
-    # Add current directory to path to locate copied modules
-    sys.path.append(os.path.dirname(__file__))
+    import yaml
+    from frost import *
 
-    from utils.utils import load_commands
+    from frost_planner.generator.instance_generator import load_instance_from_json
+    from frost_planner.solver.genetic_solver import GeneticAlgorithmSolver
+    from frost_planner.executor.static_executor import StaticExecutor
+    from frost_planner.solver.dummy_solver import DummySolver
+    from frost_planner.executor.dynamic_executor import DynamicExecutor
+    from frost_planner.core.base import TaskStatus, Task, Job, SchedulingInstance, Machine
+
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+    CONFIG_PATH = os.path.join(BASE_DIR, "frost_config.yml")
+
+    with open(CONFIG_PATH, "r") as file:
+        FROST_CONFIG = yaml.safe_load(file)
 =}
 
-main reactor {
-    wh_unit = new WarehouseUnit();
-    logical action trigger_next_command;
+main reactor FactoryMain {
+    bus = new FrostBus(name="frost_bus", width=2)
+    warehouse = new WarehouseUnit(name="warehouseunit", _update_step= 1msec)
+    scheduler = new Scheduler(name="scheduler")
 
-    state command_list;
-    state commands_left = 0;
-
-    reaction(startup) -> trigger_next_command {=
-        print("--- [MAIN] Simulation Start ---")
-        
-        # Load commands (expects reversed list from utils for pop())
-        self.command_list = load_commands("commands.yaml")
-        
-        if not self.command_list:
-            print("--- [MAIN] ERROR: No commands loaded. ---")
-            request_stop()
-            return
-
-        self.commands_left = len(self.command_list)
-        print(f"--- [MAIN] Loaded {self.commands_left} commands. ---")
-        
-        trigger_next_command.schedule(0)
-    =}
-
-    reaction(trigger_next_command) -> wh_unit.command {=
-        if self.commands_left > 0:
-            cmd = self.command_list.pop()
-            self.commands_left -= 1
-            
-            print(f"\n[MAIN] Sending: {cmd.get('action')} (ID: {cmd.get('tray_id', 'N/A')})")
-            wh_unit.command.set(cmd)
-        else:
-            print("\n--- [MAIN] All commands finished. ---")
-            request_stop()
-    =}
-
-    reaction(wh_unit.status) -> trigger_next_command {=
-        status = wh_unit.status.value
-        
-        if status == "DONE":
-            print("[MAIN] Status: DONE.")
-            # Wait 1s before next command
-            trigger_next_command.schedule(1_000_000_000)
-            
-        elif status == "ERROR":
-            print("[MAIN] Status: ERROR. Stopping.")
-            request_stop()
-    =}
+    warehouse.channel_out, scheduler.channel_out -> bus.channel_in
+    bus.channel_out -> warehouse.channel_in, scheduler.channel_in after 10 msec
 }

@@ -1,0 +1,43 @@
+{
+  "jobs": [
+    {
+      "id": "Job_Stress",
+      "name": "Stress_Test_Sequenziale",
+      "tasks": [
+        {
+          "id": "T1",
+          "name": "ExtractTray",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "parameters": {
+            "tray_number": 2
+          }
+        },
+        {
+          "id": "T2",
+          "name": "SendBack",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "dependencies": ["T1"]
+        },
+        {
+          "id": "T3",
+          "name": "FetchAnyEmpty",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "dependencies": ["T1", "T2"]
+        },
+        {
+          "id": "T4",
+          "name": "SendBack",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "dependencies": ["T1", "T2", "T3"]
+        }
+      ]
+    }
+  ],
+  "machines": [
+    { "id": "warehouseunit", "name": "warehouseunit" }
+  ]
+}

@@ -17,6 +17,12 @@ class Tray:
         self.width = 0.7
         
         self.weight = weight if weight is not None else self.MIN_W
+
+    
+    @property
+    def is_full(self) -> bool:
+        """A tray is considered full if its weight is greater than the empty weight + a small margin of error."""
+        return self.weight > (self.MIN_W + 0.01)
     
     # --- (Getters) ---
     def get_tray_id(self):
@@ -33,4 +39,8 @@ class Tray:
 
     def get_width(self):
         return self.width
+    
+    def __repr__(self):
+        """String representation of the tray"""
+        return f"<Tray ID: {self.tray_id}, Weight: {self.weight:.3f}>"
     
