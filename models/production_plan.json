@@ -8,7 +8,10 @@
           "id": "T1",
           "name": "ExtractTray",
           "eligible_machines": ["warehouseunit"],
-          "processing_time": 20
+          "processing_time": 20,
+          "parameters": {
+            "tray_number": 2
+          }
         },
         {
           "id": "T2",
@@ -29,7 +32,7 @@
           "name": "SendBack",
           "eligible_machines": ["warehouseunit"],
           "processing_time": 20,
-          "dependencies": ["T1", "T2","T3"]
+          "dependencies": ["T1", "T2", "T3"]
         }
       ]
     }
