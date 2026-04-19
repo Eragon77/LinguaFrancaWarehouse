@@ -50,58 +50,62 @@ reactor WarehouseUnit extends FrostMachine {
     =}
 
     reaction(message_filter.requests) -> channel_out {=
-        """ Handle incoming task requests """
-        if not message_filter.requests.value:
-            return
+            """ Handle incoming task requests """
+            if not message_filter.requests.value:
+                return
 
-        for bank_index, msg in message_filter.requests.value:
-            node_path = getattr(msg.payload, "node", "")
-            id_to_store = msg.identifier 
-            sender_name = msg.sender
-            
-            action = None
-            if "ExtractTray" in node_path:
-                action = "ExtractTray"
-            elif "SendBack" in node_path:
-                action = "SendBack"
-            elif "FetchAnyEmpty" in node_path: 
-                action = "FetchAnyEmpty"
-
-            if action:
-                self.logger.info(f"Task {action} received from {sender_name} (ID: {id_to_store})")
+            for bank_index, msg in message_filter.requests.value:
+                node_path = getattr(msg.payload, "node", "")
+                id_to_store = msg.identifier 
+                sender_name = msg.sender
                 
-                if not self.wh_ctrl.is_busy:
-                    success = False
-                    if action == "ExtractTray":
-                        success = self.wh_ctrl.extract()
-                    elif action == "SendBack":
-                        success = self.wh_ctrl.sendback()
-                    elif action == "FetchAnyEmpty":
-                        success = self.wh_ctrl.fetch_any_empty()
+                action = None
+                tray_num = None
+                if "ExtractTray" in node_path:
+                    action = "ExtractTray"
+                    args = getattr(msg.payload, "args", [])
+                    if args and len(args) > 0:
+                        tray_num = int(args[0]) if isinstance(args[0], (int, str)) else None
+                elif "SendBack" in node_path:
+                    action = "SendBack"
+                elif "FetchAnyEmpty" in node_path: 
+                    action = "FetchAnyEmpty"
+
+                if action:
+                    self.logger.info(f"Task {action} received from {sender_name} (ID: {id_to_store})" + (f" tray={tray_num}" if tray_num else ""))
                     
-                    if success:
-                        self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name}
-                        self.is_busy.value = True
+                    if not self.wh_ctrl.is_busy:
+                        success = False
+                        if action == "ExtractTray":
+                            success = self.wh_ctrl.extract(tray_num if tray_num is not None else 0)
+                        elif action == "SendBack":
+                            success = self.wh_ctrl.sendback()
+                        elif action == "FetchAnyEmpty":
+                            success = self.wh_ctrl.fetch_any_empty()
+                        
+                        if success:
+                            self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name, "tray": tray_num}
+                            self.is_busy.value = True
+                        else:
+                            # Task rejected
+                            error_msg = FrostMessage(
+                                sender=self._get_reactor_name(),
+                                target=sender_name,
+                                identifier=str(uuid.uuid4()),
+                                correlation_id=id_to_store,
+                                header=FrostHeader(
+                                    type=MsgType.ERROR,
+                                    version=(1, 0, 0),
+                                    namespace=MsgNamespace.METHOD,
+                                    msg_name=MethodMsgName.COMPLETED 
+                                ),
+                                payload=MethodPayload(node="PHYSICAL_ERROR_IMPOSSIBLE")
+                            )
+                            self._set_channel_out_port([error_msg], channel_out)
                     else:
-                        # Task rejected
-                        error_msg = FrostMessage(
-                            sender=self._get_reactor_name(),
-                            target=sender_name,
-                            identifier=str(uuid.uuid4()),
-                            correlation_id=id_to_store,
-                            header=FrostHeader(
-                                type=MsgType.ERROR,
-                                version=(1, 0, 0),
-                                namespace=MsgNamespace.METHOD,
-                                msg_name=MethodMsgName.COMPLETED 
-                            ),
-                            payload=MethodPayload(node="PHYSICAL_ERROR_IMPOSSIBLE")
-                        )
-                        self._set_channel_out_port([error_msg], channel_out)
-                else:
-                    # Machine busy, queue the task
-                    self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name}
-    =}
+                        # Machine busy, queue the task
+                        self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name, "tray": tray_num}
+        =}
 
     reaction(control_loop) -> channel_out {=
         """ Update physics and handle completion signals """
@@ -143,7 +147,7 @@ reactor WarehouseUnit extends FrostMachine {
                     
                     success = False
                     if next_task["action"] == "ExtractTray":
-                        success = self.wh_ctrl.extract()
+                        success = self.wh_ctrl.extract(next_task.get("tray", 0))
                     elif next_task["action"] == "SendBack":
                         success = self.wh_ctrl.sendback()
                     elif next_task["action"] == "FetchAnyEmpty":
