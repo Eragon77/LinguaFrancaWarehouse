@@ -6,7 +6,7 @@ from slot import Slot
 from cfg_engine import get_next_action_from_egglog
 
 class MissionState(Enum):
-    """Consolidated mission states."""
+    """Mission states."""
     IDLE = "idle"
     FETCH = "fetch"
     DELIVER = "deliver"
@@ -22,17 +22,20 @@ class WarehouseController:
         self.dest_slot: Optional[Slot] = None
         self.dest_type: Optional[str] = None
         self.locked_target_id: Optional[str] = None
+        self.target_tray_id: Optional[int] = None
+
 
     @property
     def is_busy(self) -> bool:
         """Return True if a mission is active."""
         return self.state != MissionState.IDLE
 
-    def _start_mission(self, src: Optional[Slot], dst: Optional[Slot], dst_type: Optional[str] = None):
+    def _start_mission(self, src: Optional[Slot], dst: Optional[Slot], dst_type: Optional[str] = None, tray_id: Optional[int] = None):
         """Initialize mission: source/dest slots, phase, lock status."""
         self.source_slot = src
         self.dest_slot = dst
         self.dest_type = dst_type
+        self.target_tray_id = tray_id
         self.locked_target_id = dst.slot_id if dst else None
         self.state = MissionState.FETCH
 
@@ -46,14 +49,21 @@ class WarehouseController:
         self._start_mission(src, dst)
         return True
 
-    def build_extract_sequence(self) -> bool:
-        """Move tray from queue to bay."""
-        src = self.wh.get_occupied_queue_slot()
+    def build_extract_sequence(self, tray_number: int | None = 0) -> bool:
+        """If tray_number > 0, extract that tray. Else, extract from queue"""
         dst = self.wh.get_tray_bay_slot()
-        if not src or not dst or dst.tray is not None:
+        if not dst or dst.tray is not None:
             return False
-        logging.info(f"Starting EXTRACT: {src.slot_id} -> {dst.slot_id}")
-        self._start_mission(src, dst)
+
+        if tray_number:
+            logging.info(f"Starting EXTRACT of tray {tray_number} from anywhere")
+            self._start_mission(None, dst, tray_id=tray_number)
+        else:
+            src = self.wh.get_occupied_queue_slot()
+            if not src:
+                return False
+            logging.info(f"Starting EXTRACT from queue: {src.slot_id} -> {dst.slot_id}")
+            self._start_mission(src, dst)
         return True
 
     def build_sendback_sequence(self) -> bool:
@@ -115,8 +125,14 @@ class WarehouseController:
 
     def _get_next_action(self, plat) -> dict:
         phase = "deliver" if self.state == MissionState.DELIVER else "fetch"
-        tid = int(self.source_slot.tray.tray_id) if self.source_slot and self.source_slot.tray else 0
         
+        if self.target_tray_id is not None:
+            tid = self.target_tray_id
+        elif self.source_slot and self.source_slot.tray:
+            tid = int(self.source_slot.tray.tray_id)
+        else:
+            tid = 0
+
         if self.dest_slot:
             ttype = self.dest_slot.slot_type
         elif self.locked_target_id:
@@ -125,7 +141,7 @@ class WarehouseController:
         else:
             ttype = self.dest_type or ""
 
-        if self.state == MissionState.FETCH and self.source_slot and self.source_slot.tray:
+        if self.state == MissionState.FETCH and (self.target_tray_id is not None or (self.source_slot and self.source_slot.tray)):
             cmd = "FETCH"
             effective_locked_id = self.locked_target_id or ""
         elif self.state == MissionState.FETCH:
@@ -152,6 +168,8 @@ class WarehouseController:
             target_type=ttype,
             locked_id=effective_locked_id
         )
+    
+    
     def _execute_action(self, action: dict, plat) -> bool:
         """Execute physical action on platform."""
         try:
@@ -190,15 +208,16 @@ class WarehouseController:
         self.source_slot = None
         self.dest_slot = None
         self.dest_type = None
+        self.target_tray_id = None
         self.locked_target_id = None
 
     def is_ready(self) -> bool:
         """Return True if idle and can accept new missions."""
         return not self.is_busy
 
-    def extract(self, TrayNumber: int = 0) -> bool:
+    def extract(self, TrayNumber: int | None=0) -> bool:
         """Public wrapper for extract mission."""
-        return self.build_extract_sequence()
+        return self.build_extract_sequence(TrayNumber)
 
     def enqueueTray(self, TrayNumber: int) -> bool:
         """Public wrapper for enqueue mission."""

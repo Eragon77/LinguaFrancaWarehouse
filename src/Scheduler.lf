@@ -18,7 +18,6 @@ reactor Scheduler extends FrostReactor {
     logical action next_task_delay
 
     method send_next_task(out_port) {=
-        """ Pop next task and send invocation request """
         if not self.task_queue:
             self.logger.info("=== ALL TASKS COMPLETED ===")
             return
@@ -26,34 +25,44 @@ reactor Scheduler extends FrostReactor {
         if self.waiting_for_response:
             return
 
-        self.current_task = self.task_queue.pop(0)
-        u_id = str(uuid.uuid4())
+        task = self.task_queue.pop(0)
+        self.current_task = task["name"]
+        tray = task.get("tray")
         
+        node = f"/Machine/{self.current_task}"
+
+        args = [tray] if tray is not None else []
+        
+        u_id = str(uuid.uuid4())
         msg = FrostMessage(
             sender=self.name,
             target=self.my_machine_name,
-            identifier=u_id, 
+            identifier=u_id,
             header=FrostHeader(
                 type=MsgType.REQUEST,
                 version=(1, 0, 0),
                 namespace=MsgNamespace.METHOD,
                 msg_name=MethodMsgName.INVOKE
             ),
-            payload=MethodPayload(node=f"/Machine/{self.current_task}")
+            payload=MethodPayload(node=node, args=args)  
         )
         
         self.expected_correlation_id = u_id
         self.waiting_for_response = True
-        
         self._set_channel_out_port([msg], out_port)
-        self.logger.info(f">>> Sent: {self.current_task} (Expected ID: {u_id})")
+        self.logger.info(f">>> Sent: {self.current_task} tray={tray} (ID: {u_id})")
     =}
 
     reaction(startup) {=
         try:
             with open(self.scheduling_instance, 'r') as file:
                 plan = json.load(file)
-            self.task_queue = [task["name"] for task in plan["jobs"][0]["tasks"]]
+                self.task_queue = []
+                for task in plan["jobs"][0]["tasks"]:
+                    item = {"name": task["name"]}
+                    if "parameters" in task and "tray_number" in task["parameters"]:
+                        item["tray"] = task["parameters"]["tray_number"]
+                    self.task_queue.append(item)
         except Exception as e:
             self.logger.error(f"JSON Load Error: {e}")
     =}
