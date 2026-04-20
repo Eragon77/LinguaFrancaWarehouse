@@ -357,12 +357,13 @@ The scheduler loads a JSON file structured as follows (see `models/production_pl
 
 ```bash
 # Clone the main repository
-git clone https://github.com/your-org/LinguaFrancaWarehouse.git
+git clone https://github.com/Eragon77/LinguaFrancaWarehouse.git
 cd LinguaFrancaWarehouse
 
 # Clone required dependencies alongside the main project
-git clone https://github.com/your-org/machine-data-model.git ../machine-data-model
-git clone https://github.com/your-org/frost-planner.git ../frost-planner
+git clone https://github.com/glacier-project/machine-data-model.git ../machine-data-model
+git clone https://github.com/glacier-project/frost-planner.git ../frost-planner
+```
 
 ### Install dependencies
 
