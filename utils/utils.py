@@ -1,6 +1,5 @@
 import yaml
 import os
-import logging
 
 def load_commands(file_name: str):
     """

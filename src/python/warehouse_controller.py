@@ -1,7 +1,6 @@
 import logging
 from typing import Optional
 from enum import Enum
-from warehouse_platform import Platform
 from slot import Slot
 from cfg_engine import get_next_action_from_egglog
 
@@ -84,7 +83,7 @@ class WarehouseController:
         dst = self.wh.get_tray_bay_slot()
         if not dst or dst.tray is not None:
             return False
-        logging.info(f"Starting FETCH_ANY_EMPTY")
+        logging.info("Starting FETCH_ANY_EMPTY")
         self._start_mission(None, dst)
         return True
 

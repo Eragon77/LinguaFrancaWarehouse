@@ -1,4 +1,3 @@
-from tray import Tray
 from slot import Slot
 
 class Platform:

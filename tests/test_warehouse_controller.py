@@ -5,7 +5,6 @@ Tests mission initialization, state transitions, and basic operations.
 
 import pytest
 from unittest.mock import Mock, patch
-from enum import Enum
 from warehouse_controller import WarehouseController, MissionState
 
 
