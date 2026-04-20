@@ -31,8 +31,6 @@ logfile.log
 warehouse_unit.log
 
 
-config.yml
-frost_config.yml
 include/
 
 
