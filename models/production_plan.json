@@ -33,6 +33,16 @@
           "eligible_machines": ["warehouseunit"],
           "processing_time": 20,
           "dependencies": ["T1", "T2", "T3"]
+        },
+        {
+          "id": "T5",
+          "name": "Enqueue",
+          "eligible_machines": ["warehouseunit"],
+          "processing_time": 20,
+          "parameters": {
+            "tray_number": 3
+          },
+          "dependencies": ["T1", "T2", "T3", "T4"]
         }
       ]
     }
