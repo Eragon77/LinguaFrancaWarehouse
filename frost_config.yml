@@ -1,0 +1,23 @@
+time_precision: NSECS 
+logging_level: INFO
+
+reactors:
+  frost_bus:
+    logging_level: INFO
+    parameters:
+      data_model_path: "models/frost_bus.yml"
+
+  scheduler:
+    logging_level: INFO
+    parameters:
+      data_model_path: "models/scheduler.yml"
+      scheduling_instance: "models/production_plan.json"
+      task_mapping:
+        ExtractTray: "/Machine/ExtractTray"
+        SendBack: "/Machine/SendBack"
+        FetchAnyEmpty: "/Machine/FetchAnyEmpty"
+        Enqueue: "/Machine/Enqueue"
+  warehouseunit: 
+    logging_level: DEBUG
+    parameters:
+      data_model_path: "models/warehouse.yml"
