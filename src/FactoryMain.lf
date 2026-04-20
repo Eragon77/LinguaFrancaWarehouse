@@ -1,5 +1,5 @@
 target Python {
-    timeout: 50 sec,
+    timeout: 200 sec,
     fast: False,
     files: [
         "../frost/src/python_lib/frost.py",
