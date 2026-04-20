@@ -1,9 +1,19 @@
+# ==========================================
+# LinguaFranca & Build Artifacts
+# ==========================================
 src-gen/
 bin/
 *.lf-project-config
 .lf-project-config
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
 
-
+# ==========================================
+# Python & Virtual Environments
+# ==========================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -14,25 +24,57 @@ frost_env/
 .tox/
 .pytest_cache/
 .coverage
-
 .python-version
 .virtualenvs/
 
+
+.python-version
+
+
+docs/build/
+docs/_build/
+
+docs/source/autoapi/
+docs/source/modules.rst
+
+
+*.log
+warehouse_unit.log
+*.tmp
+*.temp
+temp/
+tmp/
+*.bak
+*.orig
+*.backup
 
 .vscode/
 .idea/
 *.swp
 *.swo
-
-
-*.log
-crash.log
-logfile.log
-warehouse_unit.log
-
-
-include/
-
-
 .DS_Store
 Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.tox_coverage/
+coverage.xml
+*.cover
+.ipynb_checkpoints/
+*.ipynb
+
+
+.env
+.env.local
+.env.*.local
+*.db
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.crt
+secrets/
