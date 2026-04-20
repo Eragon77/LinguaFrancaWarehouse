@@ -379,14 +379,7 @@ Make sure the `scheduling_instance` state in `Scheduler.lf` points to your JSON 
 
 ```bash
 # Direct
-pytest tests/
-
-# Via tox
-tox                   # all environments
-tox -e py312          # tests only
-tox -e formatter      # ruff lint + format
-tox -e type           # mypy type check
-tox -e coverage       # coverage report
+poetry run pytest tests/
 ```
 
 ### Scripts
