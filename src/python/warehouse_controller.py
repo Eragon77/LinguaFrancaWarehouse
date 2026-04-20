@@ -38,14 +38,15 @@ class WarehouseController:
         self.target_tray_id = tray_id
         self.state = MissionState.FETCH
 
-    def build_enqueue_sequence(self, tray_id: str) -> bool:
+
+    #TODO: enqueue any empty tray?
+    def build_enqueue_sequence(self, tray_number: int) -> bool:
         """Move tray from storage to empty queue slot."""
-        src = self.wh.find_slot_by_tray_id(tray_id)
-        dst = self.wh.get_empty_queue_slot()
-        if not src or not dst:
+        if not self.wh.has_tray(tray_number):
+            logging.error(f"Tray {tray_number} non trovato. Impossibile accodare.")
             return False
-        logging.info(f"Starting ENQUEUE: {src.slot_id} -> {dst.slot_id}")
-        self._start_mission(src, dst)
+        logging.info(f"Starting ENQUEUE for tray {tray_number}")
+        self._start_mission(None, None, dst_type="queue", tray_id=tray_number)
         return True
 
     def build_extract_sequence(self, tray_number: int | None = 0) -> bool:
@@ -220,9 +221,9 @@ class WarehouseController:
         """Public wrapper for extract mission."""
         return self.build_extract_sequence(TrayNumber)
 
-    def enqueueTray(self, TrayNumber: int) -> bool:
+    def enqueue(self, TrayNumber: int) -> bool:
         """Public wrapper for enqueue mission."""
-        return self.build_enqueue_sequence(str(TrayNumber))
+        return self.build_enqueue_sequence(TrayNumber)
 
     def sendback(self, TrayNumber: int = 0) -> bool:
         """Public wrapper for sendback mission."""

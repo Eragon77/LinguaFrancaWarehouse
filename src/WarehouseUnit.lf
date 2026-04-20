@@ -70,6 +70,11 @@ reactor WarehouseUnit extends FrostMachine {
                     action = "SendBack"
                 elif "FetchAnyEmpty" in node_path: 
                     action = "FetchAnyEmpty"
+                elif "Enqueue" in node_path:
+                    action = "Enqueue"
+                    args = getattr(msg.payload, "args", [])
+                    if args and len(args) > 0:
+                        tray_num = int(args[0]) if isinstance(args[0], (int, str)) else None
 
                 if action:
                     self.logger.info(f"Task {action} received from {sender_name} (ID: {id_to_store})" + (f" tray={tray_num}" if tray_num else ""))
@@ -82,6 +87,8 @@ reactor WarehouseUnit extends FrostMachine {
                             success = self.wh_ctrl.sendback()
                         elif action == "FetchAnyEmpty":
                             success = self.wh_ctrl.fetch_any_empty()
+                        elif action == "Enqueue":
+                            success = self.wh_ctrl.enqueue(tray_num) if tray_num is not None else False
                         
                         if success:
                             self.pending_tasks[id_to_store] = {"action": action, "sender": sender_name, "tray": tray_num}
@@ -152,6 +159,8 @@ reactor WarehouseUnit extends FrostMachine {
                         success = self.wh_ctrl.sendback()
                     elif next_task["action"] == "FetchAnyEmpty":
                         success = self.wh_ctrl.fetch_any_empty()
+                    elif next_task["action"] == "Enqueue":
+                        success = self.wh_ctrl.enqueue(next_task.get("tray")) if next_task.get("tray") is not None else False
                         
                     if success:
                         self.logger.info(f"Starting next queued task: {next_task['action'].upper()} (ID: {next_id})")

@@ -27,7 +27,13 @@ root:
       returns:
         - !!BooleanVariableNode
             name: "done"
-
+    - !!AsyncMethodNode
+      name: "Enqueue"
+      description: "enqueue tray to queue slot"
+      returns:
+        - !!BooleanVariableNode
+            name: "done"
+            
     - !!FolderNode
       name: "Status"
       children:
