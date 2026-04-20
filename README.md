@@ -346,12 +346,25 @@ The scheduler loads a JSON file structured as follows (see `models/production_pl
 
 ### Prerequisites
 
-- Python **≥ 3.12**
+- Python ≥ 3.12
 - [Poetry](https://python-poetry.org/)
 - [LinguaFranca CLI (`lfc`)](https://www.lf-lang.org/docs/installation)
-- Sister packages `machine-data-model` and `frost-planner` available as local paths (see `pyproject.toml`)
+- **Internal dependencies** (available from the organization's repository):
+  - `machine-data-model` 
+  - `frost-planner`
 
-### Install Python dependencies
+### Clone and setup
+
+```bash
+# Clone the main repository
+git clone https://github.com/your-org/LinguaFrancaWarehouse.git
+cd LinguaFrancaWarehouse
+
+# Clone required dependencies alongside the main project
+git clone https://github.com/your-org/machine-data-model.git ../machine-data-model
+git clone https://github.com/your-org/frost-planner.git ../frost-planner
+
+### Install dependencies
 
 ```bash
 poetry install
