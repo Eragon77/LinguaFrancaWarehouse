@@ -401,10 +401,8 @@ poetry run pytest tests/
 | Script | Purpose |
 |---|---|
 | `scripts/apply_cstyle.sh` | Apply code style (ruff / black) |
-| `scripts/check_typing.sh` | Run mypy type checking |
-| `scripts/gen_doc.sh` | Build Sphinx HTML documentation |
 | `scripts/gen_requirements.sh` | Regenerate pinned requirements files |
-| `scripts/radon.sh` | Cyclomatic complexity metrics |
+| `scripts/radon.sh` | Complexity metrics |
 | `scripts/run_tox.sh` | Run the full tox suite |
 
 ### Build documentation
