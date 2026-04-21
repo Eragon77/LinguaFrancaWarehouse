@@ -4,11 +4,14 @@ from enum import Enum
 from slot import Slot
 from cfg_engine import get_next_action_from_egglog
 
+
 class MissionState(Enum):
     """Mission states."""
+
     IDLE = "idle"
     FETCH = "fetch"
     DELIVER = "deliver"
+
 
 class WarehouseController:
     """Controller for warehouse robot missions using egglog planning."""
@@ -23,13 +26,18 @@ class WarehouseController:
         self.locked_target_id: Optional[str] = None
         self.target_tray_id: Optional[int] = None
 
-
     @property
     def is_busy(self) -> bool:
         """Return True if a mission is active."""
         return self.state != MissionState.IDLE
 
-    def _start_mission(self, src: Optional[Slot], dst: Optional[Slot], dst_type: Optional[str] = None, tray_id: Optional[int] = None):
+    def _start_mission(
+        self,
+        src: Optional[Slot],
+        dst: Optional[Slot],
+        dst_type: Optional[str] = None,
+        tray_id: Optional[int] = None,
+    ):
         """Initialize mission: source/dest slots, phase, lock status."""
         self.source_slot = src
         self.dest_slot = dst
@@ -37,8 +45,7 @@ class WarehouseController:
         self.target_tray_id = tray_id
         self.state = MissionState.FETCH
 
-
-    #TODO: enqueue any empty tray?
+    # TODO: enqueue any empty tray?
     def build_enqueue_sequence(self, tray_number: int) -> bool:
         """Move tray from storage to empty queue slot."""
         if not self.wh.has_tray(tray_number):
@@ -95,7 +102,7 @@ class WarehouseController:
 
         plat = self.wh.platform
         result = self._get_next_action(plat)
-        
+
         if result["type"] == "lock":
             self.locked_target_id = result.get("slot_id", "")
             if self.locked_target_id:
@@ -126,7 +133,7 @@ class WarehouseController:
 
     def _get_next_action(self, plat) -> dict:
         phase = "deliver" if self.state == MissionState.DELIVER else "fetch"
-        
+
         if self.target_tray_id is not None:
             tid = self.target_tray_id
         elif self.source_slot and self.source_slot.tray:
@@ -142,7 +149,10 @@ class WarehouseController:
         else:
             ttype = self.dest_type or ""
 
-        if self.state == MissionState.FETCH and (self.target_tray_id is not None or (self.source_slot and self.source_slot.tray)):
+        if self.state == MissionState.FETCH and (
+            self.target_tray_id is not None
+            or (self.source_slot and self.source_slot.tray)
+        ):
             cmd = "FETCH"
             effective_locked_id = self.locked_target_id or ""
         elif self.state == MissionState.FETCH:
@@ -167,24 +177,33 @@ class WarehouseController:
             cmd_type=cmd,
             target_id=tid,
             target_type=ttype,
-            locked_id=effective_locked_id
+            locked_id=effective_locked_id,
         )
-    
-    
+
     def _execute_action(self, action: dict, plat) -> bool:
         """Execute physical action on platform."""
         try:
             atype = action["type"]
-            
+
             if atype == "pick":
-                target = self.source_slot or self.wh.get_slot_at(plat.curr_x, plat.curr_y)
+                target = self.source_slot or self.wh.get_slot_at(
+                    plat.curr_x, plat.curr_y
+                )
                 if not target:
                     logging.error("No slot to pick from")
                     return False
                 return plat.pick_up_from(target)
-            
+
             elif atype == "place":
-                target = (self.dest_slot or (self.wh.get_slot_by_id(self.locked_target_id) if self.locked_target_id else None) or self.wh.get_slot_at(plat.curr_x, plat.curr_y))
+                target = (
+                    self.dest_slot
+                    or (
+                        self.wh.get_slot_by_id(self.locked_target_id)
+                        if self.locked_target_id
+                        else None
+                    )
+                    or self.wh.get_slot_at(plat.curr_x, plat.curr_y)
+                )
                 if not target:
                     logging.error("No slot to place into")
                     return False
@@ -192,12 +211,12 @@ class WarehouseController:
                 if success:
                     self.locked_target_id = None
                 return success
-            
+
             elif atype == "update_y":
                 return plat.update_y_position(action["val"])
             elif atype == "update_x":
                 return plat.update_x_position(action["val"])
-            
+
             return True
         except Exception as e:
             logging.error(f"[EXECUTION FAIL] {action['type']}: {e}")
@@ -216,7 +235,7 @@ class WarehouseController:
         """Return True if idle and can accept new missions."""
         return not self.is_busy
 
-    def extract(self, TrayNumber: int | None=0) -> bool:
+    def extract(self, TrayNumber: int | None = 0) -> bool:
         """Public wrapper for extract mission."""
         return self.build_extract_sequence(TrayNumber)
 
@@ -235,10 +254,13 @@ class WarehouseController:
     def requestInfoBay(self) -> str:
         """Return bay status as JSON."""
         import json
-        return json.dumps({
-            "status": "Occupied" if self.wh.tray_in_bay > 0 else "Empty",
-            "tray_id": self.wh.tray_in_bay
-        })
+
+        return json.dumps(
+            {
+                "status": "Occupied" if self.wh.tray_in_bay > 0 else "Empty",
+                "tray_id": self.wh.tray_in_bay,
+            }
+        )
 
     def clearBay(self) -> bool:
         """Remove tray from bay."""
