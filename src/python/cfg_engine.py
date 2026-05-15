@@ -122,6 +122,19 @@ WAREHOUSE_RULES = (
         ),
         Slot(sid, stype, sx, sy, OptionTray.none()),
     ).then(union(result).with_(ActionResult.lock(sid))),
+    
+    # FETCH: retract X
+    rule(
+        eq(result).to(
+            RobotState(
+                cy, cx, F, MissionPhase.fetch(), Command.fetch_tray(tid)
+            ).next_action()
+        ),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f))),
+        cy != sy,
+        cx != f64(0.0),
+    ).then(union(result).with_(ActionResult.update_x(f64(0.0)))),
+
     # FETCH: move Y
     rule(
         eq(result).to(
@@ -131,7 +144,9 @@ WAREHOUSE_RULES = (
         ),
         Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f))),
         cy != sy,
+        cx == f64(0.0),
     ).then(union(result).with_(ActionResult.update_y(sy))),
+
     # FETCH: move X
     rule(
         eq(result).to(
@@ -142,6 +157,7 @@ WAREHOUSE_RULES = (
         Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f))),
         cx != sx,
     ).then(union(result).with_(ActionResult.update_x(sx))),
+
     # FETCH: pick
     rule(
         eq(result).to(
@@ -151,6 +167,19 @@ WAREHOUSE_RULES = (
         ),
         Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, is_f))),
     ).then(union(result).with_(ActionResult.pick())),
+
+    # FETCH_ANY_EMPTY: retract X
+    rule(
+        eq(result).to(
+            RobotState(
+                cy, cx, F, MissionPhase.fetch(), Command.fetch_any_empty()
+            ).next_action()
+        ),
+        Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F))),
+        cy != sy,
+        cx != f64(0.0),
+    ).then(union(result).with_(ActionResult.update_x(f64(0.0)))),
+
     # FETCH_ANY_EMPTY: move Y
     rule(
         eq(result).to(
@@ -160,7 +189,9 @@ WAREHOUSE_RULES = (
         ),
         Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F))),
         cy != sy,
+        cx == f64(0.0),
     ).then(union(result).with_(ActionResult.update_y(sy))),
+
     # FETCH_ANY_EMPTY: move X
     rule(
         eq(result).to(
@@ -171,6 +202,7 @@ WAREHOUSE_RULES = (
         Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F))),
         cx != sx,
     ).then(union(result).with_(ActionResult.update_x(sx))),
+
     # FETCH_ANY_EMPTY: pick
     rule(
         eq(result).to(
@@ -180,6 +212,20 @@ WAREHOUSE_RULES = (
         ),
         Slot(sid, stype, sx, sy, OptionTray.some(Tray(tid, F))),
     ).then(union(result).with_(ActionResult.pick())),
+
+    # DELIVER: retract X
+    rule(
+        eq(result).to(
+            RobotState(
+                cy, cx, T, MissionPhase.deliver(), Command.deliver_to(stype)
+            ).next_action()
+        ),
+        LockedTarget(locked_id),
+        Slot(locked_id, stype, sx, sy, OptionTray.none()),
+        cy != sy,
+        cx != f64(0.0),
+    ).then(union(result).with_(ActionResult.update_x(f64(0.0)))),
+
     # DELIVER: move Y
     rule(
         eq(result).to(
@@ -190,7 +236,9 @@ WAREHOUSE_RULES = (
         LockedTarget(locked_id),
         Slot(locked_id, stype, sx, sy, OptionTray.none()),
         cy != sy,
+        cx == f64(0.0),
     ).then(union(result).with_(ActionResult.update_y(sy))),
+
     # DELIVER: move X
     rule(
         eq(result).to(
@@ -202,6 +250,7 @@ WAREHOUSE_RULES = (
         Slot(locked_id, stype, sx, sy, OptionTray.none()),
         cx != sx,
     ).then(union(result).with_(ActionResult.update_x(sx))),
+
     # DELIVER: place
     rule(
         eq(result).to(
@@ -212,12 +261,12 @@ WAREHOUSE_RULES = (
         LockedTarget(locked_id),
         Slot(locked_id, stype, sx, sy, OptionTray.none()),
     ).then(union(result).with_(ActionResult.place())),
+    
     # IDLE: wait
     rewrite(RobotState(cy, cx, holding, phase, Command.idle()).next_action()).to(
         ActionResult.wait()
     ),
 )
-
 
 def get_next_action_from_egglog(
     warehouse,
