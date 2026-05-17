@@ -16,7 +16,7 @@ class Tray:
         self.height = 0.16725
         self.width = 0.7
 
-        self.weight = weight if weight is not None else self.MIN_W
+        self.weight = weight if weight is not None and weight>=self.MIN_W and weight<=self.MAX_W else self.MIN_W
 
     @property
     def is_full(self) -> bool:
