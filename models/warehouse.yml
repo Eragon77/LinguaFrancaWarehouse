@@ -38,6 +38,9 @@ root:
       name: "Status"
       children:
         - !!NumericalVariableNode
+          name: "pos_x"
+          initial_value: 0
+        - !!NumericalVariableNode
           name: "pos_y"
           initial_value: 0
         - !!NumericalVariableNode

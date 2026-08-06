@@ -23,6 +23,7 @@ preamble {=
 =}
 
 reactor WarehouseUnit extends FrostMachine {
+    state pos_x = {= None =}
     state pos_y = {= None =}
     state tray_at_bay = {= None =}
     state is_busy = {= None =}
@@ -35,6 +36,7 @@ reactor WarehouseUnit extends FrostMachine {
     reaction(startup) {=
         """ Initialize hardware and data nodes """
         try:
+            self.pos_x = self.data_model.get_node("Machine/Status/pos_x")
             self.pos_y = self.data_model.get_node("Machine/Status/pos_y")
             self.tray_at_bay = self.data_model.get_node("Machine/Status/tray_at_bay")
             self.is_busy = self.data_model.get_node("Machine/Status/Busy")
@@ -121,6 +123,10 @@ reactor WarehouseUnit extends FrostMachine {
                 self.wh_ctrl.tick()
                 self.is_busy.value = True
                 
+                self.pos_x.value = self.wh.platform.curr_x
+                self.pos_y.value = self.wh.platform.curr_y
+                self.tray_at_bay.value = self.wh.tray_in_bay
+    
             elif self.is_busy.value == True:
                 if self.pending_tasks:
                     # Finalize current task
