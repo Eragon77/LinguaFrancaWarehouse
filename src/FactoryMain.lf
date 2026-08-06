@@ -19,6 +19,7 @@ target Python {
 import FrostBus from "../frost/src/lib/FrostBus.lf"
 import WarehouseUnit from "WarehouseUnit.lf"
 import Scheduler from "Scheduler.lf"
+#import Monitor from "Monitor.lf"
 
 preamble {=
     import uuid
@@ -42,9 +43,13 @@ preamble {=
 
 main reactor FactoryMain {
     bus = new FrostBus(name="frost_bus", width=2)
+    
     warehouse = new WarehouseUnit(name="warehouseunit", _update_step= 1msec)
     scheduler = new Scheduler(name="scheduler")
+    
+    #monitor = new Monitor(name="monitor")
 
-    warehouse.channel_out, scheduler.channel_out -> bus.channel_in
+    warehouse.channel_out, scheduler.channel_out-> bus.channel_in
+    
     bus.channel_out -> warehouse.channel_in, scheduler.channel_in after 10 msec
 }

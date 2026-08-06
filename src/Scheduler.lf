@@ -6,7 +6,6 @@ preamble {=
     import uuid
     import json
     
-    # 1. IMPORTA IL BUILDER
     from machine_data_model.builder.data_model_builder import DataModelBuilder
 =}
 

@@ -1,0 +1,53 @@
+target Python
+
+import FrostReactor from "../frost/src/lib/FrostReactor.lf"
+
+preamble {=
+    import uuid
+    from frost import *
+=}
+
+reactor Monitor extends FrostReactor {
+    
+    reaction(connected_to_bus) -> channel_out {=
+        self.logger.info("Monitor initialized.")
+        
+        #Subscription to pos_x
+        msg_x = FrostMessage(
+            sender=self.name,
+            target="warehouseunit", 
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1,0,0),
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE
+            ),
+            payload=SubscriptionPayload(node="/Machine/Status/pos_x")
+        )
+
+        # Subscription to pos_y
+        msg_y = FrostMessage(
+            sender=self.name,
+            target="warehouseunit", 
+            identifier=str(uuid.uuid4()),
+            header=FrostHeader(
+                type=MsgType.REQUEST,
+                version=(1,0,0),
+                namespace=MsgNamespace.VARIABLE,
+                msg_name=VariableMsgName.SUBSCRIBE
+            ),
+            payload=SubscriptionPayload(node="/Machine/Status/pos_y")
+        )
+        
+        self._set_channel_out_port([msg_x, msg_y], channel_out)
+    =}
+
+    reaction(message_filter.responses) {=
+        if not message_filter.responses.value: return
+        
+        for bank_index, msg in message_filter.responses.value:
+            if msg.header.namespace == MsgNamespace.VARIABLE and msg.header.msg_name == VariableMsgName.UPDATE:
+                self.logger.info(f"[MONITOR] {msg.payload.node} = {msg.payload.value}")
+    =}
+}

@@ -1,14 +1,16 @@
 time_precision: NSECS 
-logging_level: INFO
+logging_level: DEBUG
 
 reactors:
-  frost_bus:
+  monitor:
     logging_level: INFO
+  frost_bus:
+    logging_level: DEBUG
     parameters:
       data_model_path: "models/frost_bus.yml"
 
   scheduler:
-    logging_level: INFO
+    logging_level: DEBUG
     parameters:
       data_model_path: "models/scheduler.yml"
       scheduling_instance: "models/production_plan.json"

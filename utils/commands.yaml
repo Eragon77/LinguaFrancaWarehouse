@@ -1,8 +1,0 @@
-- action: enqueue_tray
-  tray_id: 5
-
-- action: extract_tray
-  args: None
-
-- action: send_back_tray
-  args: None
