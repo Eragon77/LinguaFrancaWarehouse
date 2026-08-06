@@ -64,12 +64,9 @@ def test_tray_is_full_boundary():
     assert boundary_tray.is_full is False
 
 
-def test_tray_accepts_out_of_bounds_weight():
-    """Test tray accepts weights outside MIN_W/MAX_W range (no validation)"""
-    out_of_bounds_weight = 10.0
-    tray = Tray(weight=out_of_bounds_weight)
-    assert tray.get_weight() == out_of_bounds_weight
-    assert tray.is_full is True  # Since 10.0 > MIN_W + 0.01
+def test_tray_rejects_out_of_bounds_weight():
+    with pytest.raises(ValueError):
+        Tray(weight=10.0)
 
 
 def test_tray_weight_none():

@@ -16,7 +16,12 @@ class Tray:
         self.height = 0.16725
         self.width = 0.7
 
-        self.weight = weight if weight is not None and weight>=self.MIN_W and weight<=self.MAX_W else self.MIN_W
+        if weight is None or weight == self.MIN_W:
+            self.weight = self.MIN_W
+        elif self.MIN_W <= weight <= self.MAX_W:
+            self.weight = weight
+        else:
+            raise ValueError(f"Weight {weight} is out of bounds. Must be between {self.MIN_W} and {self.MAX_W} kg.")
 
     @property
     def is_full(self) -> bool:

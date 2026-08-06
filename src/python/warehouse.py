@@ -2,6 +2,8 @@ from warehouse_platform import Platform
 from slot import Slot
 from tray import Tray
 
+MIN_W = 2.960 
+MAX_W = 4.960
 
 class Warehouse:
     X_LEFT = -0.7
@@ -61,10 +63,10 @@ class Warehouse:
             tray1 = Tray(weight=3.5)
             self.get_slot_by_id("storage_L_0").add_tray(tray1)
 
-            tray2 = Tray(weight=2.9)
+            tray2 = Tray(weight=MIN_W)
             self.get_slot_by_id("storage_L_5").add_tray(tray2)
 
-            tray3 = Tray(weight=2.6)
+            tray3 = Tray(weight=MIN_W)
             self.get_slot_by_id("storage_R_7").add_tray(tray3)
 
             tray4 = Tray(weight=3.0)
@@ -73,7 +75,7 @@ class Warehouse:
             tray5 = Tray(weight=3.1)
             self.get_slot_by_id("storage_R_15").add_tray(tray5)
 
-            tray6 = Tray(weight=2.0)
+            tray6 = Tray(weight=MIN_W)
             self.get_slot_by_id("queue_0").add_tray(tray6)
 
             print("Initialized Warehouse with sample trays.")
