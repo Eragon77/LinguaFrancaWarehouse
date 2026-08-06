@@ -4,6 +4,15 @@ root:
   name: "Scheduler"
   description: ""
   children:
+    - !!FolderNode
+      name: "Status"
+      children:
+        - !!StringVariableNode
+          name: "current_task"
+          initial_value: "IDLE"
+        - !!NumericalVariableNode
+          name: "queue_length"
+          initial_value: 0
     - !!CompositeMethodNode
       name: "StartTask"
       parameters: 

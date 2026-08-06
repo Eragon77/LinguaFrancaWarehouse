@@ -5,6 +5,9 @@ import FrostReactor from "../frost/src/lib/FrostReactor.lf"
 preamble {=
     import uuid
     import json
+    
+    # 1. IMPORTA IL BUILDER
+    from machine_data_model.builder.data_model_builder import DataModelBuilder
 =}
 
 reactor Scheduler extends FrostReactor {
@@ -14,12 +17,17 @@ reactor Scheduler extends FrostReactor {
     state current_task = ""
     state expected_correlation_id = "" 
     state waiting_for_response = {= False =}
+    state data_model = {= None =}
+    state current_task_node = {= None =}
+    state queue_length_node = {= None =}
 
     logical action next_task_delay
 
     method send_next_task(out_port) {=
         if not self.task_queue:
             self.logger.info("=== ALL TASKS COMPLETED ===")
+            if self.current_task_node: self.current_task_node.value = "IDLE"
+            if self.queue_length_node: self.queue_length_node.value = 0
             return
 
         if self.waiting_for_response:
@@ -28,6 +36,9 @@ reactor Scheduler extends FrostReactor {
         task = self.task_queue.pop(0)
         self.current_task = task["name"]
         tray = task.get("tray")
+        
+        if self.current_task_node: self.current_task_node.value = self.current_task
+        if self.queue_length_node: self.queue_length_node.value = len(self.task_queue)
         
         node = f"/Machine/{self.current_task}"
 
@@ -55,6 +66,15 @@ reactor Scheduler extends FrostReactor {
 
     reaction(startup) {=
         try:
+            builder = DataModelBuilder()
+            self.data_model = builder.get_data_model("models/scheduler.yml")
+            self.current_task_node = self.data_model.get_node("Scheduler/Status/current_task")
+            self.queue_length_node = self.data_model.get_node("Scheduler/Status/queue_length")
+            self.logger.info("Scheduler Data Model loaded successfully.")
+        except Exception as e:
+            self.logger.error(f"Failed to load scheduler model: {e}")
+
+        try:
             with open(self.scheduling_instance, 'r') as file:
                 plan = json.load(file)
                 self.task_queue = []
@@ -63,6 +83,8 @@ reactor Scheduler extends FrostReactor {
                     if "parameters" in task and "tray_number" in task["parameters"]:
                         item["tray"] = task["parameters"]["tray_number"]
                     self.task_queue.append(item)
+                    
+                if self.queue_length_node: self.queue_length_node.value = len(self.task_queue)
         except Exception as e:
             self.logger.error(f"JSON Load Error: {e}")
     =}
