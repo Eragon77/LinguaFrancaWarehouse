@@ -107,11 +107,12 @@ LinguaFrancaWarehouse/
 │   ├── test_tray.py
 │   ├── test_warehouse.py
 │   └── test_warehouse_controller.py
+│   └── test_models.py
 │
 ├── docs/                           # Sphinx documentation (autoapi)
 ├── scripts/                        # Dev utility scripts
 ├── utils/
-│   └── commands.yaml               # Manual command sequence example
+│   └── Monitor.lf                  #Subscribes to x and y variables to monitor them.
 │
 ├── pyproject.toml                  # Poetry project definition
 ├── requirements.txt                # Runtime deps (pinned)
@@ -153,11 +154,11 @@ Row height: 0.16725 m   |   Y position = row × 0.16725
 | Tray ID | Slot | Weight |
 |---|---|---|
 | 1 | storage_L_0 | 3.5 kg (full) |
-| 2 | storage_L_5 | 2.9 kg (full) |
-| 3 | storage_R_7 | 2.6 kg (full) |
+| 2 | storage_L_5 | 2.96 kg (empty) |
+| 3 | storage_R_7 | 2.96 kg (empty) |
 | 4 | storage_L_10 | 3.0 kg (full) |
 | 5 | storage_R_15 | 3.1 kg (full) |
-| 6 | queue_0 | 2.0 kg (empty) |
+| 6 | queue_0 | 2.96 kg (empty) |
 
 A **Tray** is considered empty if `weight ≤ 2.97 kg` (i.e. `MIN_W + 0.01`, where `MIN_W = 2.960 kg`).
 
