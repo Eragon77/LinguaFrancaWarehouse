@@ -47,9 +47,27 @@ main reactor FactoryMain {
     warehouse = new WarehouseUnit(name="warehouseunit", _update_step= 1msec)
     scheduler = new Scheduler(name="scheduler")
     
-    #monitor = new Monitor(name="monitor")
-
     warehouse.channel_out, scheduler.channel_out-> bus.channel_in
     
     bus.channel_out -> warehouse.channel_in, scheduler.channel_in after 10 msec
 }
+
+# If you want to see the pub/sub data model updates in action without any callbacks,
+# you can plug in the passive Monitor reactor by replacing the following lines in src/FactoryMain.lf:
+
+# Add import:
+#import Monitor from "Monitor.lf"
+
+# Update main reactor (expand bus width from 2 to 3 and bind monitor ports):
+
+#main reactor FactoryMain {
+#   bus = new FrostBus(name="frost_bus", width=3)
+    
+#    warehouse = new WarehouseUnit(name="warehouseunit", _update_step=1msec)
+#    scheduler = new Scheduler(name="scheduler")
+#    monitor = new Monitor(name="monitor")
+
+#   warehouse.channel_out, scheduler.channel_out, monitor.channel_out -> bus.channel_in
+    
+#    bus.channel_out -> warehouse.channel_in, scheduler.channel_in, monitor.channel_in after 10 msec
+#}
