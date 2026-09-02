@@ -12,27 +12,38 @@ root:
     - !!AsyncMethodNode
       name: "ExtractTray"
       description: "extract tray"
+      parameters:
+        - !!NumericalVariableNode
+          name: "tray_id"
+          initial_value: 0
       returns:
         - !!BooleanVariableNode
-            name: "done"
+          name: "accepted"
+
     - !!AsyncMethodNode
       name: "SendBack"
       description: "sendback tray"
       returns:
         - !!BooleanVariableNode
-            name: "done"
+          name: "accepted"
+
     - !!AsyncMethodNode
       name: "FetchAnyEmpty"
       description: "fetch any empty tray"
       returns:
         - !!BooleanVariableNode
-            name: "done"
+          name: "accepted"
+
     - !!AsyncMethodNode
       name: "Enqueue"
       description: "enqueue tray to queue slot"
+      parameters:
+        - !!NumericalVariableNode
+          name: "tray_id"
+          initial_value: 0
       returns:
         - !!BooleanVariableNode
-            name: "done"
+          name: "accepted"
             
     - !!FolderNode
       name: "Status"
