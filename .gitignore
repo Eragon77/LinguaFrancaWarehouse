@@ -81,3 +81,4 @@ secrets/
 
 include/
 randon/
+.aider*

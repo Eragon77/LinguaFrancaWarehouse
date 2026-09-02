@@ -43,7 +43,10 @@ reactor WarehouseUnit extends FrostMachine {
             
             self.wh = Warehouse()
             self.wh_ctrl = WarehouseController(self.wh)
-        
+
+            self.pos_x.value = self.wh.platform.curr_x
+            self.pos_y.value = self.wh.platform.curr_y
+            self.tray_at_bay.value = self.wh.tray_in_bay
             self.is_busy.value = False
             self.wh_ctrl.set_idle()
             self.logger.info("WarehouseUnit ready.")
@@ -128,6 +131,10 @@ reactor WarehouseUnit extends FrostMachine {
                 self.tray_at_bay.value = self.wh.tray_in_bay
     
             elif self.is_busy.value == True:
+                self.pos_x.value = self.wh.platform.curr_x
+                self.pos_y.value = self.wh.platform.curr_y
+                self.tray_at_bay.value = self.wh.tray_in_bay
+
                 if self.pending_tasks:
                     # Finalize current task
                     corr_id = next(iter(self.pending_tasks))
