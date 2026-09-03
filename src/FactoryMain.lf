@@ -16,7 +16,7 @@ target Python {
     single-threaded: true,
 };
 
-import FrostBus from "../frost/src/lib/FrostBus.lf"
+import FrostLink from "../frost/src/lib/FrostLink.lf"
 import WarehouseUnit from "WarehouseUnit.lf"
 import Scheduler from "Scheduler.lf"
 #import Monitor from "Monitor.lf"
@@ -35,14 +35,14 @@ preamble {=
     from frost_planner.core.base import TaskStatus, Task, Job, SchedulingInstance, Machine
 
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-    CONFIG_PATH = os.path.join(BASE_DIR, "frost_config.yml")
+    CONFIG_PATH = os.path.join(BASE_DIR, "resources/frost_config.yml")
 
     with open(CONFIG_PATH, "r") as file:
         FROST_CONFIG = yaml.safe_load(file)
 =}
 
 main reactor FactoryMain {
-    bus = new FrostBus(name="frost_bus", width=2)
+    bus = new FrostLink(name="frost_link", width=2)
     
     warehouse = new WarehouseUnit(name="warehouseunit", _update_step= 1msec)
     scheduler = new Scheduler(name="scheduler")
