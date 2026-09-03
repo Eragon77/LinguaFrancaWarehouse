@@ -28,8 +28,8 @@ class WarehouseController:
 
     @property
     def is_busy(self) -> bool:
-        """Return True if a mission is active."""
-        return self.state != MissionState.IDLE
+        """Return True if a mission is active or platform is holding a tray."""
+        return self.state != MissionState.IDLE or self.wh.platform.is_holding_tray()
 
     def _start_mission(
         self,
@@ -43,9 +43,9 @@ class WarehouseController:
         self.dest_slot = dst
         self.dest_type = dst_type
         self.target_tray_id = tray_id
+        self.locked_target_id = None
         self.state = MissionState.FETCH
 
-    # TODO: enqueue any empty tray?
     def build_enqueue_sequence(self, tray_number: int) -> bool:
         """Move tray from storage to empty queue slot."""
         if not self.wh.has_tray(tray_number):
@@ -97,36 +97,41 @@ class WarehouseController:
     def tick(self) -> bool:
         """Execute one mission step: query egglog and run action."""
         if not self.is_busy:
-            print("Controller IDLE")
             return False
 
         plat = self.wh.platform
         result = self._get_next_action(plat)
 
-        if result["type"] == "lock":
+        if not result or "type" not in result:
+            return False
+
+        action_type = result["type"]
+
+        if action_type == "lock":
             self.locked_target_id = result.get("slot_id", "")
             if self.locked_target_id:
                 logging.info(f"Locked target: {self.locked_target_id}")
             return True
 
-        if result["type"] == "wait":
-            return False
+        if action_type == "wait":
+            return True
 
         if not self._execute_action(result, plat):
-            logging.error(f"Action failed: {result['type']}")
+            logging.error(f"[TICK FAIL] Action failed: {action_type} | action={result} | pos=({plat.curr_x}, {plat.curr_y}) | holding={plat.is_holding_tray()}")
             self.set_idle()
             return False
 
-        if result["type"] == "pick" and self.state == MissionState.FETCH:
+        if action_type == "pick" and self.state == MissionState.FETCH:
             if not self.source_slot:
                 self.source_slot = self.wh.get_slot_at(plat.curr_x, plat.curr_y)
             self.state = MissionState.DELIVER
             logging.info("Transitioned to DELIVER phase")
             return True
 
-        if result["type"] == "place" and self.state == MissionState.DELIVER:
-            logging.info("Mission complete")
-            self.set_idle()
+        if action_type == "place" and self.state == MissionState.DELIVER:
+            if not plat.is_holding_tray():
+                logging.info("Mission complete: tray placed.")
+                self.set_idle()
             return True
 
         return True
@@ -145,7 +150,7 @@ class WarehouseController:
             ttype = self.dest_slot.slot_type
         elif self.locked_target_id:
             locked_slot = self.wh.get_slot_by_id(self.locked_target_id)
-            ttype = locked_slot.slot_type if locked_slot else ""
+            ttype = locked_slot.slot_type if locked_slot else (self.dest_type or "")
         else:
             ttype = self.dest_type or ""
 
