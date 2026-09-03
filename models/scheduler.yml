@@ -20,10 +20,15 @@ root:
           name: "remote_machine"
         - !!StringVariableNode
           name: "remote_method"
+        - !!NumericalVariableNode
+          name: "tray_id"
+          initial_value: 0
       cfg:
         - !!CallRemoteMethodNode
           method: "${remote_method}"
           remote_id: "${remote_machine}"
+          kwargs:
+            tray_id: "${tray_id}"
         - !!WaitRemoteEventNode
           variable: "/Machine/Status/Busy"
           remote_id: "${remote_machine}"
