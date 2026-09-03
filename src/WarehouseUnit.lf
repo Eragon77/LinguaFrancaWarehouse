@@ -9,7 +9,7 @@ target Python {
     ]
 };
 
-import FrostMachine from "../frost/src/lib/FrostMachine.lf"
+import FrostReactor from "../frost/src/lib/FrostReactor.lf"
 
 preamble {=
     import sys
@@ -22,7 +22,7 @@ preamble {=
     from warehouse_controller import WarehouseController
 =}
 
-reactor WarehouseUnit extends FrostMachine {
+reactor WarehouseUnit extends FrostReactor {
     state pos_x = {= None =}
     state pos_y = {= None =}
     state tray_at_bay = {= None =}
