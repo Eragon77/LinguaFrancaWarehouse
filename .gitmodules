@@ -1,0 +1,3 @@
+[submodule "frost"]
+	path = frost
+	url = git@github.com:glacier-project/frost.git
