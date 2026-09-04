@@ -106,7 +106,7 @@ reactor WarehouseUnit extends FrostReactor {
                 return
             
             if not self.connected:
-            return
+                return
 
             if self.wh_ctrl.is_busy:
                 self.wh_ctrl.tick()
