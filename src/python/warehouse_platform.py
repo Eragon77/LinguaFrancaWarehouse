@@ -42,6 +42,8 @@ class Platform:
         if not self.is_holding_tray():
             return False  # Platform is empty
 
+        assert self.held_tray is not None
+        
         try:
             slot.add_tray(self.held_tray)
             self.held_tray = None
