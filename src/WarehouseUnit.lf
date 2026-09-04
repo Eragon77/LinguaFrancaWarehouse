@@ -102,26 +102,30 @@ reactor WarehouseUnit extends FrostReactor {
     =}
 
     reaction(control_loop) -> channel_out {=
-        if not self.wh_ctrl: 
+            if not self.wh_ctrl: 
+                return
+            
+            if not self.connected:
             return
 
-        if self.wh_ctrl.is_busy:
-            self.wh_ctrl.tick()
+            if self.wh_ctrl.is_busy:
+                self.wh_ctrl.tick()
 
-        currently_busy = self.wh_ctrl.is_busy
+            currently_busy = self.wh_ctrl.is_busy
 
-        if self.prev_busy and not currently_busy:
-            self.logger.info("PHYSICAL MOVEMENT COMPLETED - NOTIFYING DATA MODEL")
-            self.is_busy_node.value = False
+            if self.prev_busy and not currently_busy:
+                self.logger.info("PHYSICAL MOVEMENT COMPLETED - NOTIFYING DATA MODEL")
+                self.is_busy_node.value = False
+
+            self.prev_busy = currently_busy
+            
+            self.pos_x.value = self.wh.platform.curr_x
+            self.pos_y.value = self.wh.platform.curr_y
+            self.tray_at_bay.value = self.wh.tray_in_bay
             
             updates = list(self.protocol_mng.get_update_messages())
             if updates:
                 self._set_output_multiport(updates, channel_out, exclude=None)
                 self.protocol_mng.clear_update_messages()
-
-        self.prev_busy = currently_busy
-        self.pos_x.value = self.wh.platform.curr_x
-        self.pos_y.value = self.wh.platform.curr_y
-        self.tray_at_bay.value = self.wh.tray_in_bay
-    =}
+        =}
 }
