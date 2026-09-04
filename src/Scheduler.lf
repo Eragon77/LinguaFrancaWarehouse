@@ -41,7 +41,7 @@ reactor Scheduler(_scheduling_instance = "models/production_plan.json") extends 
                 if res:
                     cid = res.return_values.get("@context_id")
                     if cid:
-                        dummy_msg = self.protocol_mng._message_builder.build_invoke_method_message(
+                        dummy_msg = self.message_builder.build_invoke_method_message(
                             correlation_id=cid,
                             target="scheduler",
                             node="Scheduler/StartTask",
