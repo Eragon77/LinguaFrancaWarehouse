@@ -114,7 +114,7 @@ class WarehouseController:
             return True
 
         if action_type == "wait":
-            return True
+            return False
 
         if not self._execute_action(result, plat):
             logging.error(f"[TICK FAIL] Action failed: {action_type} | action={result} | pos=({plat.curr_x}, {plat.curr_y}) | holding={plat.is_holding_tray()}")
