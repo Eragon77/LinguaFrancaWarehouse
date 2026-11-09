@@ -126,9 +126,6 @@ LinguaFrancaWarehouse/
 │
 ├── docs/                            # Sphinx documentation (autoapi) — see notes below
 ├── scripts/                         # Dev utility scripts
-├── utils/
-│   └── Monitor.lf                   # Optional passive pub/sub monitor — see notes below
-│
 ├── poetry.lock
 ├── pyproject.toml                   # Poetry project definition
 ├── requirements.txt                 # Runtime deps (pinned; excludes local path deps)
@@ -273,8 +270,6 @@ bus.channel_out ─→ warehouse.channel_in   (after 10 msec)
 ```
 
 `bus` is an instance of `FrostLink` with `width=2`. The 10 ms logical delay on the bus output prevents zero-time causality cycles.
-
-An optional third participant, `Monitor` (`utils/Monitor.lf`), is provided but commented out by default; to enable it you'd bump the bus `width` to 3 and wire in `monitor.channel_out`/`channel_in` as shown in the comments at the bottom of `FactoryMain.lf`. See the note in [Known Limitations & Notes](#known-limitations--notes) before doing so.
 
 ---
 
@@ -482,7 +477,6 @@ make html
 
 - **`frost/` is a submodule, not bundled code.** Forgetting `--recurse-submodules` (or `git submodule update --init`) leaves it as an empty directory and `lfc` will fail to resolve the `../frost/src/...` imports in `FactoryMain.lf`, `WarehouseUnit.lf` and `Scheduler.lf`.
 - **No mission queueing — but this guard never fires in a normal run.** `ExtractTray`/`SendBack`/`FetchAnyEmpty`/`Enqueue` calls made while `WarehouseUnit` is already busy are rejected outright (the callback returns `False`); they are not buffered for later execution. With the single `Scheduler` shipped here, though, you'll never actually see a rejection: `monitoring_loop` only calls `send_next_task()` while `current_task == ""`, and `current_task` is only reset back to `""` inside `StartTask`'s `post_callback`, which fires after `WaitRemoteEventNode` confirms the WarehouseUnit's `Busy` flag has gone back to `false`. So the Scheduler self-serializes and never sends task N+1 until task N has fully completed — the "reject if busy" path only matters if a *second* caller (another Scheduler instance, a manual data-model call, a future monitoring tool) invokes a mission on `WarehouseUnit` without going through this wait.
-- **`utils/Monitor.lf` predates the current Frost API.** It reacts on `connected_to_bus` and builds `FrostMessage`/`SubscriptionPayload` objects by hand, but the current `FrostReactor` (in the pinned `frost` submodule commit) exposes `startup`, `explore_targets`, `check_targets`, `request_messages`, `response_messages` and `check_update` — there is no `connected_to_bus` reaction any more. It would need a small update (e.g. moving the subscription logic into a `startup` reaction) before it can be wired back into `FactoryMain.lf`.
 - **`frost-planner` solver/executor classes are imported but unused.** `FactoryMain.lf`'s preamble pulls in `GeneticAlgorithmSolver`, `DummySolver`, `StaticExecutor`, `DynamicExecutor` and `SchedulingInstance`, but none are currently invoked — scheduling is done by `Scheduler.lf`'s own simple sequential loop. `production_plan.json`'s `dependencies`/`processing_time` fields are therefore currently inert as far as this simulation is concerned.
 - **`pyproject.toml`'s project name is `frost`** (`description = "Orchestratore Frost"`), a leftover from how the file was authored; it doesn't affect how the project is built or run.
 

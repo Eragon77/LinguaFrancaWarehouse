@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import logging
-
 from egglog import *
-
-logging.getLogger("egglog").setLevel(logging.WARNING)
-
 
 class Tray(Expr):
     """Represents a tray with ID and fullness status."""

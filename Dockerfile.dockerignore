@@ -1,6 +1,15 @@
 **
 !LinguaFrancaWarehouse/
-!LinguaFrancaWarehouse/**
+!LinguaFrancaWarehouse/pyproject.toml
+!LinguaFrancaWarehouse/poetry.lock
+!LinguaFrancaWarehouse/src/
+!LinguaFrancaWarehouse/src/**
+!LinguaFrancaWarehouse/frost/
+!LinguaFrancaWarehouse/frost/**
+!LinguaFrancaWarehouse/models/
+!LinguaFrancaWarehouse/models/**
+!LinguaFrancaWarehouse/resources/
+!LinguaFrancaWarehouse/resources/**
 !machine-data-model/
 !machine-data-model/**
 !frost-planner/
