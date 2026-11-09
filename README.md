@@ -18,6 +18,7 @@ A reactive simulation of an automated vertical warehouse robot, built with [Ling
 - [Data Models & Configuration](#data-models--configuration)
 - [Production Plan (JSON)](#production-plan-json)
 - [Getting Started](#getting-started)
+- [Docker](#docker)
 - [Development](#development)
 - [Known Limitations & Notes](#known-limitations--notes)
 - [License](#license)
@@ -389,9 +390,10 @@ The scheduler loads a JSON file structured as follows (see `models/production_pl
 
 ### Prerequisites
 
-- Python ≥ 3.12 (CI/tox also exercises 3.14)
-- [Poetry](https://python-poetry.org/)
-- [LinguaFranca CLI (`lfc`)](https://www.lf-lang.org/docs/installation)
+- Python ≥ 3.12 (CI/tox also exercises 3.14; for local runs and development)
+- [Poetry](https://python-poetry.org/) (for local dependency installation)
+- [LinguaFranca CLI (`lfc`)](https://www.lf-lang.org/docs/installation) (for local compilation)
+- Docker Engine (optional; required only for the Docker workflow below)
 - **Internal dependencies** (available from the organization's repository), referenced as local path dependencies in `pyproject.toml`:
   - `machine-data-model`
   - `frost-planner`
@@ -430,6 +432,19 @@ python src-gen/FactoryMain/FactoryMain.py
 ```
 
 To run a different mission plan, point `_scheduling_instance` in **`resources/frost_config.yml`** at your JSON file (it defaults to `models/production_plan.json`).
+
+---
+
+## Docker
+
+The Dockerfile compiles the Lingua Franca app during the image build and creates a runtime image. Initialize the `frost` submodule and clone the sibling dependencies as described in [Clone and setup](#clone-and-setup), then run these commands from the `LinguaFrancaWarehouse` directory:
+
+```bash
+docker build -f Dockerfile -t lingua-franca-warehouse ..
+docker run --rm -it lingua-franca-warehouse
+```
+
+The build context is the parent directory (`..`) so Docker can access `machine-data-model` and `frost-planner` alongside this repository. The container runs in the foreground; press `Ctrl+C` to stop it.
 
 ---
 
